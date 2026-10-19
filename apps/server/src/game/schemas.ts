@@ -12,7 +12,7 @@ const bid = z.number().int().min(100).max(1000);
 export const gameActionSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('dealEvent'),
-    event: z.enum(['nineAtBottom', 'redeal', 'misdeal']),
+    event: z.enum(['nineAtBottom', 'jackAtBottom', 'redeal', 'misdeal']),
     reason: z.enum(['fourNines', 'fourJacks', 'threeNines']).optional(),
     playerId: id.optional(),
   }),

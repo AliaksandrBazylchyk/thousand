@@ -21,7 +21,7 @@ interface HandSnap {
 }
 
 interface EventSnap {
-  type: 'nineAtBottom' | 'redeal' | 'misdeal';
+  type: 'nineAtBottom' | 'jackAtBottom' | 'redeal' | 'misdeal';
   reason: keyof typeof REDEAL_REASON_LABEL | null;
 }
 
@@ -43,6 +43,7 @@ export function inputText(i: Partial<InputSnap> | null | undefined): string {
 
 function eventText(e: EventSnap): string {
   if (e.type === 'nineAtBottom') return 'девятка внизу при сдвиге';
+  if (e.type === 'jackAtBottom') return 'валет внизу при сдвиге';
   if (e.type === 'misdeal') return 'неправильная раздача';
   return `пересдача: ${e.reason ? REDEAL_REASON_LABEL[e.reason] : 'без причины'}`;
 }

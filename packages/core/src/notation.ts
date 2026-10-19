@@ -47,6 +47,8 @@ export function dealMarkText(d: DealMark): string {
   switch (d.type) {
     case 'nineAtBottom':
       return '✂9';
+    case 'jackAtBottom':
+      return '✂В';
     case 'misdeal':
       return '✕';
     case 'redeal':

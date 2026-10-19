@@ -75,13 +75,22 @@ export function DealPanel({ ctx }: { ctx: GameCtx }) {
             </button>
           )}
           {(me === turn.shifter || isHost) && (
-            <button
-              className="btn"
-              disabled={busy}
-              onClick={() => run({ type: 'dealEvent', event: 'nineAtBottom' })}
-            >
-              Внизу девятка ({current.nineCount}/3)
-            </button>
+            <>
+              <button
+                className="btn"
+                disabled={busy}
+                onClick={() => run({ type: 'dealEvent', event: 'nineAtBottom' })}
+              >
+                Внизу девятка ({current.shiftCount}/3)
+              </button>
+              <button
+                className="btn"
+                disabled={busy}
+                onClick={() => run({ type: 'dealEvent', event: 'jackAtBottom' })}
+              >
+                Внизу валет ({current.shiftCount}/3)
+              </button>
+            </>
           )}
           {(iAmOnHundred || isHost) && !onHundredOnBarrel && (
             <button

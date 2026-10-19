@@ -339,8 +339,9 @@ export function createGameService(db: Db, onChange: (gameId: string, roomId: str
       switch (action.type) {
         case 'dealEvent': {
           if (action.event === 'misdeal') requireHost();
-          if (action.event === 'nineAtBottom' && actorId !== turn.shifter && !isHost) {
-            throw new GameError('Девятку внизу отмечает сдвигающий');
+          const atBottom = action.event === 'nineAtBottom' || action.event === 'jackAtBottom';
+          if (atBottom && actorId !== turn.shifter && !isHost) {
+            throw new GameError('Девятку или валета внизу отмечает сдвигающий');
           }
           if (action.event === 'redeal') {
             if (!action.reason) throw new GameError('Укажите причину пересдачи');

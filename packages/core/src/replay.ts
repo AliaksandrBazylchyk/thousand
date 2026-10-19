@@ -49,7 +49,7 @@ export function replay(setup: GameSetup, entries: readonly Entry[]): GameState {
   const status = (p: PlayerId) => players[p]!;
 
   let dealerIndex = seats.indexOf(setup.firstDealer);
-  let nineCount = 0;
+  let shiftCount = 0;
   let redealCount = 0;
   let dealMarks: DealMark[] = [];
   let handNumber = 1;
@@ -89,14 +89,14 @@ export function replay(setup: GameSetup, entries: readonly Entry[]): GameState {
     issues,
     current: winner
       ? null
-      : { turn: turnAt(seats, dealerIndex), nineCount, redealCount, dealMarks, handNumber },
+      : { turn: turnAt(seats, dealerIndex), shiftCount, redealCount, dealMarks, handNumber },
   };
 
   // ─── Очерёдность и события раздачи (2.3, шаги 1 и 12) ──────────────────
 
   function nextDealer() {
     dealerIndex = (dealerIndex + 1) % n;
-    nineCount = 0;
+    shiftCount = 0;
     redealCount = 0;
     dealMarks = [];
   }
@@ -113,13 +113,15 @@ export function replay(setup: GameSetup, entries: readonly Entry[]): GameState {
       });
 
     switch (e.type) {
+      // Девятка или валет внизу: счётчик общий, третий раз подряд — штраф сдвигающему (2.3, R8).
       case 'nineAtBottom':
-        nineCount++;
-        mark(nineCount, turn.shifter);
-        return nineCount >= DEAL_REPEATS_PER_PENALTY ? 'nine' : null;
+      case 'jackAtBottom':
+        shiftCount++;
+        mark(shiftCount, turn.shifter);
+        return shiftCount >= DEAL_REPEATS_PER_PENALTY ? 'nine' : null;
       case 'redeal':
         redealCount++;
-        nineCount = 0;
+        shiftCount = 0;
         mark(redealCount, e.playerId);
         if (!e.reason) {
           issues.push({

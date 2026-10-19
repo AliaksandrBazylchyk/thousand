@@ -42,7 +42,8 @@ export interface HandEntry {
   prikup: PrikupInput | null;
 }
 
-export type DealEventType = 'nineAtBottom' | 'redeal' | 'misdeal';
+/** Девятка или валет внизу при сдвиге, пересдача, неправильная раздача. */
+export type DealEventType = 'nineAtBottom' | 'jackAtBottom' | 'redeal' | 'misdeal';
 export type RedealReason = 'fourNines' | 'fourJacks' | 'threeNines';
 
 export interface DealEventEntry {
@@ -183,8 +184,8 @@ export interface PlayerStatus {
 
 export interface CurrentDeal {
   turn: Turn;
-  /** Сколько раз подряд внизу девятка в этой раздаче. */
-  nineCount: number;
+  /** Сколько раз подряд при сдвиге внизу девятка или валет (счётчик общий). */
+  shiftCount: number;
   /** Сколько пересдач подряд у этого раздающего. */
   redealCount: number;
   dealMarks: DealMark[];

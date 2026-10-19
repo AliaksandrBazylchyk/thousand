@@ -82,7 +82,13 @@ export function markSymbol(m: Mark): Symbol | null {
     case 'dealPenalty':
       switch (m.kind) {
         case 'nine':
-          return sym('nine-bottom', PENALTY_LABEL, '✂', 'penalty', 'Девятка внизу 3 раза подряд');
+          return sym(
+            'nine-bottom',
+            PENALTY_LABEL,
+            '✂',
+            'penalty',
+            'Девятка или валет внизу 3 раза подряд',
+          );
         case 'redeal':
           return sym('redeal', PENALTY_LABEL, '↻', 'penalty', 'Третья пересдача подряд');
         case 'misdeal':
@@ -103,7 +109,21 @@ const FALL_TITLE: Record<Extract<Mark, { type: 'barrelFall' }>['reason'], string
 export function dealMarkSymbol(d: DealMark): Symbol {
   switch (d.type) {
     case 'nineAtBottom':
-      return sym('nine-bottom', '9', '✂', 'muted', `Девятка внизу при сдвиге (${d.count}-я)`);
+      return sym(
+        'nine-bottom',
+        '9',
+        '✂',
+        'muted',
+        `Девятка внизу при сдвиге (${d.count}-й раз подряд)`,
+      );
+    case 'jackAtBottom':
+      return sym(
+        'nine-bottom',
+        'В',
+        '✂',
+        'muted',
+        `Валет внизу при сдвиге (${d.count}-й раз подряд)`,
+      );
     case 'misdeal':
       return sym('misdeal', undefined, '✕', 'penalty', 'Неправильная раздача');
     case 'redeal': {
@@ -160,13 +180,16 @@ export const LEGEND: { symbols: Symbol[]; meaning: string }[] = [
     ],
     meaning: 'Пересдача: 4 девятки, 4 вальта, 3 девятки',
   },
-  { symbols: [sym('nine-bottom', '9', '✂', 'muted', '')], meaning: 'Девятка внизу при сдвиге' },
+  {
+    symbols: [sym('nine-bottom', '9', '✂', 'muted', ''), sym('nine-bottom', 'В', '✂', 'muted', '')],
+    meaning: 'Девятка, валет внизу при сдвиге',
+  },
   {
     symbols: [
       sym('redeal', PENALTY_LABEL, '↻', 'penalty', ''),
       sym('nine-bottom', PENALTY_LABEL, '✂', 'penalty', ''),
     ],
-    meaning: 'Третья пересдача, третья девятка',
+    meaning: 'Третья пересдача, третий сдвиг',
   },
   { symbols: [sym('misdeal', PENALTY_LABEL, '✕', 'penalty', '')], meaning: 'Неправильная раздача' },
   { symbols: [sym('prikup', undefined, 'П', 'muted', '')], meaning: 'На прикупе' },

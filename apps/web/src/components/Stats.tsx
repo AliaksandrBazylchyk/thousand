@@ -162,7 +162,7 @@ export function PlayerGroups({ s, nameOf }: { s: PlayerStats; nameOf: (id: Playe
               ],
           ),
           ['Третья пересдача подряд', s.penalties.redealPenalties],
-          ['Девятка внизу 3 раза', s.penalties.ninePenalties],
+          ['Девятка или валет внизу 3 раза', s.penalties.ninePenalties],
           ['Неправильные раздачи', s.penalties.misdeals],
         ]}
       />
