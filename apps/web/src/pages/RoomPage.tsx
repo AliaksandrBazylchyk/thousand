@@ -57,6 +57,37 @@ export function RoomPage() {
   );
 }
 
+/**
+ * Копирование в буфер. Clipboard API есть только на HTTPS; на сайте по IP через HTTP —
+ * запасной способ через выделенный текст, а если и он не сработал — окно со ссылкой.
+ */
+async function copyText(text: string): Promise<boolean> {
+  if (window.isSecureContext && navigator.clipboard) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // Пробуем запасной способ ниже.
+    }
+  }
+  const area = document.createElement('textarea');
+  area.value = text;
+  area.setAttribute('readonly', '');
+  area.style.position = 'fixed';
+  area.style.opacity = '0';
+  document.body.appendChild(area);
+  area.select();
+  let ok: boolean;
+  try {
+    ok = document.execCommand('copy');
+  } catch {
+    ok = false;
+  }
+  area.remove();
+  if (!ok) window.prompt('Скопируйте ссылку на комнату:', text);
+  return ok;
+}
+
 function ShareLink() {
   const [copied, setCopied] = useState(false);
   const url = window.location.href;
@@ -64,7 +95,7 @@ function ShareLink() {
     <button
       className="btn small"
       onClick={() => {
-        void navigator.clipboard?.writeText(url).then(() => setCopied(true));
+        void copyText(url).then(setCopied);
       }}
     >
       {copied ? 'Ссылка скопирована' : 'Скопировать ссылку на комнату'}
