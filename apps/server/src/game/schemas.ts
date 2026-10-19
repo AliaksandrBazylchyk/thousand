@@ -40,6 +40,20 @@ export const gameActionSchema = z.discriminatedUnion('type', [
     prikupMarriage: suit.nullable().optional(),
   }),
   z.object({ type: z.literal('confirmHand') }),
+  z.object({
+    type: z.literal('editHand'),
+    handId: id,
+    declarerId: id,
+    bid,
+    dark,
+    rospis: z.boolean(),
+    goldenThousand: z.boolean(),
+    inputs: z
+      .array(z.object({ playerId: id, tricks: points, marriages: z.array(marriage).max(5) }))
+      .max(4),
+    prikup: z.object({ points, marriage: suit.nullable() }).nullable(),
+  }),
+  z.object({ type: z.literal('deleteDealEvent'), eventId: id }),
   z.object({ type: z.literal('setHost'), playerId: id }),
   z.object({ type: z.literal('finishGame') }),
   z.object({ type: z.literal('cancelGame') }),

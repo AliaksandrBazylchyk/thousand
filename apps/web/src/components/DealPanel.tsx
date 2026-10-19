@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { MIN_BID, MIN_DARK_BID, MIN_DARK_OVERBID, type DarkStatus } from '@thousand/core';
 import { REDEAL_REASON_LABEL, dealMarkSymbol } from '../symbols';
+import { Sym } from './Sym';
 import { BidStepper, ErrorText, useRun, type GameCtx } from './ui';
 
 /** Этап «Раздача»: очерёдность, события раздачи, тёмная, итог торгов. */
@@ -36,9 +37,7 @@ export function DealPanel({ ctx }: { ctx: GameCtx }) {
         <p className="small">
           В этой раздаче:{' '}
           {current.dealMarks.map((d) => (
-            <span key={d.entryId} className="sym" title={dealMarkSymbol(d).title}>
-              {dealMarkSymbol(d).text}
-            </span>
+            <Sym key={d.entryId} s={dealMarkSymbol(d)} />
           ))}
         </p>
       )}

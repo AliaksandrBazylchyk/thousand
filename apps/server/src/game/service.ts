@@ -7,6 +7,7 @@ import {
   type DraftInput,
   type Entry,
   type GameAction,
+  type GameDetails,
   type GameSetup,
   type GameState,
   type GameSummary,
@@ -36,6 +37,8 @@ export class GameError extends Error {}
 type HandRow = typeof hands.$inferSelect;
 type InputRow = typeof handInputs.$inferSelect;
 type GameRow = typeof games.$inferSelect;
+type EventRow = typeof dealEvents.$inferSelect;
+type EditAction = Extract<GameAction, { type: 'editHand' | 'deleteDealEvent' }>;
 
 /** Ошибки итога торгов, которые проверяются ещё до ввода очков. */
 const BIDDING_ISSUES = new Set<IssueCode>([
@@ -54,6 +57,9 @@ interface LoadedGame {
   setup: GameSetup;
   seats: { id: PlayerId; name: string }[];
   entries: Entry[];
+  hands: HandRow[];
+  inputs: InputRow[];
+  events: EventRow[];
   draft: HandRow | null;
   draftInputs: InputRow[];
   state: GameState;
@@ -210,6 +216,9 @@ export function createGameService(db: Db, onChange: (gameId: string, roomId: str
       setup,
       seats,
       entries,
+      hands: handRows,
+      inputs: inputRows,
+      events: eventRows,
       draft,
       draftInputs: draft ? inputsOf(draft.id) : [],
       state: replay(setup, entries),
@@ -287,8 +296,33 @@ export function createGameService(db: Db, onChange: (gameId: string, roomId: str
 
   function act(gameId: string, actorId: PlayerId, action: GameAction) {
     const g = load(gameId);
-    if (g.game.status !== 'active') throw new GameError('Партия уже не идёт');
     if (!g.setup.seats.includes(actorId)) throw new GameError('Вы не участвуете в этой партии');
+    if (action.type === 'editHand' || action.type === 'deleteDealEvent') {
+      edit(g, actorId, action);
+    } else {
+      play(g, actorId, action);
+    }
+    cache.delete(gameId);
+    onChange(gameId, g.room.id);
+  }
+
+  function logEdit(
+    g: LoadedGame,
+    actorId: PlayerId,
+    action: string,
+    before: unknown,
+    after: unknown,
+    handId?: string | null,
+  ) {
+    db.insert(editLog)
+      .values({ gameId: g.game.id, handId: handId ?? null, actorId, action, before, after })
+      .run();
+  }
+
+  /** Действия по ходу партии: раздача, торги, ввод, подтверждение. */
+  function play(g: LoadedGame, actorId: PlayerId, action: Exclude<GameAction, EditAction>) {
+    const gameId = g.game.id;
+    if (g.game.status !== 'active') throw new GameError('Партия уже не идёт');
     const isHost = actorId === g.game.hostId;
     const requireHost = () => {
       if (!isHost) throw new GameError('Это может сделать только ведущий');
@@ -297,10 +331,7 @@ export function createGameService(db: Db, onChange: (gameId: string, roomId: str
     if (!current) throw new GameError('Партия окончена');
     const turn = current.turn;
     const log = (action: string, before: unknown, after: unknown, handId?: string | null) =>
-      db
-        .insert(editLog)
-        .values({ gameId, handId: handId ?? null, actorId, action, before, after })
-        .run();
+      logEdit(g, actorId, action, before, after, handId);
 
     db.transaction(() => {
       switch (action.type) {
@@ -477,9 +508,202 @@ export function createGameService(db: Db, onChange: (gameId: string, roomId: str
         }
       }
     });
+  }
 
-    cache.delete(gameId);
-    onChange(gameId, g.room.id);
+  /**
+   * Правка истории ведущим (ТЗ 5.5): кон или событие раздачи. Партия пересчитывается с первого кона;
+   * правка отклоняется, если где-то дальше по таблице появляется ошибка.
+   */
+  function edit(g: LoadedGame, actorId: PlayerId, action: EditAction) {
+    if (g.game.status === 'cancelled') throw new GameError('Партия отменена');
+    if (actorId !== g.game.hostId) throw new GameError('Править коны может только ведущий');
+
+    db.transaction(() => {
+      if (action.type === 'editHand') {
+        const hand = g.hands.find((h) => h.id === action.handId && h.status === 'confirmed');
+        const row = g.state.rows.find((r) => r.entryId === action.handId);
+        if (!hand || !row) throw new GameError('Кон не найден');
+        const turn = row.turn;
+        for (const input of action.inputs) {
+          if (!turn.active.includes(input.playerId)) {
+            throw new GameError('Очки взяток вводят только играющие в этом коне');
+          }
+        }
+        if (action.prikup && !turn.prikupSitter)
+          throw new GameError('Прикуп бывает только вчетвером');
+
+        const oldInputs = g.inputs.filter((i) => i.handId === hand.id);
+        const now = new Date();
+        const newInputs: InputRow[] = action.inputs.map((i) => {
+          const old = oldInputs.find((o) => o.playerId === i.playerId);
+          const same = old?.tricks === i.tricks && sameList(old.marriages, i.marriages);
+          return {
+            handId: hand.id,
+            playerId: i.playerId,
+            tricks: i.tricks,
+            marriages: i.marriages,
+            prikupPoints: null,
+            prikupMarriage: null,
+            enteredBy: same ? old.enteredBy : actorId,
+            updatedAt: same ? old.updatedAt : now,
+          };
+        });
+        if (action.prikup && turn.prikupSitter) {
+          const old = oldInputs.find((o) => o.playerId === turn.prikupSitter);
+          const same =
+            old?.prikupPoints === action.prikup.points &&
+            old.prikupMarriage === action.prikup.marriage;
+          newInputs.push({
+            handId: hand.id,
+            playerId: turn.prikupSitter,
+            tricks: null,
+            marriages: [],
+            prikupPoints: action.prikup.points,
+            prikupMarriage: action.prikup.marriage,
+            enteredBy: same ? old.enteredBy : actorId,
+            updatedAt: same ? old.updatedAt : now,
+          });
+        }
+        const next: HandRow = {
+          ...hand,
+          declarerId: action.declarerId,
+          bid: action.bid,
+          dark: action.dark,
+          rospis: action.rospis,
+          goldenThousand: action.goldenThousand,
+        };
+        const entries = g.entries.map((e) =>
+          e.id === hand.id ? toHandEntry(next, newInputs, g.setup) : e,
+        );
+        const state = checkRecalc(g, entries);
+
+        db.update(hands)
+          .set({
+            declarerId: next.declarerId,
+            bid: next.bid,
+            dark: next.dark,
+            rospis: next.rospis,
+            goldenThousand: next.goldenThousand,
+          })
+          .where(eq(hands.id, hand.id))
+          .run();
+        db.delete(handInputs).where(eq(handInputs.handId, hand.id)).run();
+        if (newInputs.length) db.insert(handInputs).values(newInputs).run();
+        syncWinner(g, state);
+        logEdit(
+          g,
+          actorId,
+          'editHand',
+          handSnapshot(hand, oldInputs),
+          handSnapshot(next, newInputs),
+          hand.id,
+        );
+      } else {
+        if (g.draft) throw new GameError('Сначала подтвердите или отмените текущий кон');
+        const event = g.events.find((e) => e.id === action.eventId);
+        if (!event) throw new GameError('Событие не найдено');
+        const state = checkRecalc(
+          g,
+          g.entries.filter((e) => e.id !== event.id),
+        );
+        db.delete(dealEvents).where(eq(dealEvents.id, event.id)).run();
+        syncWinner(g, state);
+        logEdit(g, actorId, 'deleteDealEvent', event, null);
+      }
+    });
+  }
+
+  /** Пересчёт с правкой: новых ошибок в конах быть не должно. */
+  function checkRecalc(g: LoadedGame, entries: Entry[]): GameState {
+    const state = replay(g.setup, entries);
+
+    // Уже сыгранные коны раздавали конкретные люди: очерёдность не должна сдвинуться.
+    const dealerOf = new Map(g.hands.map((h) => [h.id, h.dealerId]));
+    for (const row of state.rows) {
+      if (row.kind === 'hand' && dealerOf.get(row.entryId) !== row.turn.dealer) {
+        throw new GameError(
+          `Нельзя: сдвинется очерёдность раздачи, начиная с кона ${row.hand?.number ?? '?'}`,
+        );
+      }
+    }
+    if (state.issues.some((i) => i.code === 'afterGameOver')) {
+      throw new GameError('После правки партия заканчивается раньше, а следующие коны уже сыграны');
+    }
+
+    const key = (i: { entryId: string; code: string; playerId?: string }) =>
+      `${i.entryId}:${i.code}:${i.playerId ?? ''}`;
+    const before = new Set(g.state.issues.filter((i) => i.level === 'error').map(key));
+    const fresh = state.issues.find((i) => i.level === 'error' && !before.has(key(i)));
+    if (fresh) {
+      const row = state.rows.find((r) => r.entryId === fresh.entryId);
+      const where = row?.hand ? `Кон ${row.hand.number}: ` : '';
+      throw new GameError(`${where}${fresh.message}`);
+    }
+    return state;
+  }
+
+  /** После правки победитель мог появиться или исчезнуть. */
+  function syncWinner(g: LoadedGame, state: GameState) {
+    const { game } = g;
+    if (state.winner && game.winnerId !== state.winner) {
+      if (g.draft) db.delete(hands).where(eq(hands.id, g.draft.id)).run();
+      db.update(games)
+        .set({
+          status: 'finished',
+          winnerId: state.winner,
+          finishedAt: game.finishedAt ?? new Date(),
+        })
+        .where(eq(games.id, game.id))
+        .run();
+    } else if (!state.winner && game.winnerId) {
+      // Партия была завершена победой, которой после правки нет: продолжаем.
+      db.update(games)
+        .set({ status: 'active', winnerId: null, finishedAt: null })
+        .where(eq(games.id, game.id))
+        .run();
+    }
+  }
+
+  function details(gameId: string): GameDetails {
+    const g = load(gameId);
+    const log = db
+      .select()
+      .from(editLog)
+      .where(eq(editLog.gameId, gameId))
+      .orderBy(asc(editLog.id))
+      .all();
+    return {
+      hands: g.hands
+        .filter((h) => h.status === 'confirmed')
+        .map((h) => ({
+          id: h.id,
+          declarerId: h.declarerId,
+          bid: h.bid,
+          dark: h.dark,
+          rospis: h.rospis,
+          goldenThousand: h.goldenThousand,
+          confirmedAt: h.confirmedAt?.getTime() ?? null,
+          inputs: g.inputs.filter((i) => i.handId === h.id).map(toDraftInput),
+        })),
+      events: g.events.map((e) => ({
+        id: e.id,
+        type: e.type,
+        reason: e.reason,
+        dealerId: e.dealerId,
+        playerId: e.playerId,
+        createdBy: e.createdBy,
+        createdAt: e.createdAt.getTime(),
+      })),
+      log: log.map((l) => ({
+        id: l.id,
+        handId: l.handId,
+        actorId: l.actorId,
+        action: l.action,
+        before: l.before,
+        after: l.after,
+        createdAt: l.createdAt.getTime(),
+      })),
+    };
   }
 
   function nextSeq(game: GameRow): number {
@@ -489,7 +713,7 @@ export function createGameService(db: Db, onChange: (gameId: string, roomId: str
     return seq;
   }
 
-  return { createRoom, roomView, ensurePlayer, createGame, getView, act };
+  return { createRoom, roomView, ensurePlayer, createGame, getView, details, act };
 }
 
 export type GameService = ReturnType<typeof createGameService>;
@@ -545,6 +769,10 @@ function toHandEntry(hand: HandRow, inputs: InputRow[], setup: GameSetup): HandE
         ? { points: dealerInput.prikupPoints, marriage: dealerInput.prikupMarriage }
         : null,
   };
+}
+
+function sameList<T>(a: readonly T[], b: readonly T[]): boolean {
+  return a.length === b.length && a.every((x) => b.includes(x));
 }
 
 function toDraftInput(i: InputRow): DraftInput {

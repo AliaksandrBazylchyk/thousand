@@ -26,7 +26,12 @@ export function RoomPage() {
           ← Все комнаты
         </Link>
         <h1>{room.name}</h1>
-        <ShareLink />
+        <div className="row">
+          <ShareLink />
+          <Link className="btn small" to={`/r/${room.code}/tv`} target="_blank">
+            Таблица для ТВ
+          </Link>
+        </div>
       </header>
 
       {known ? (

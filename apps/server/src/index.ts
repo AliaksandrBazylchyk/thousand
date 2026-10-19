@@ -79,6 +79,10 @@ app.get<{ Params: { id: string } }>('/api/games/:id', (req, reply) =>
   handle(reply, () => service.getView(req.params.id)),
 );
 
+app.get<{ Params: { id: string } }>('/api/games/:id/details', (req, reply) =>
+  handle(reply, () => service.details(req.params.id)),
+);
+
 // ─── Фронтенд в проде ────────────────────────────────────────────────────
 
 if (existsSync(WEB_DIST)) {

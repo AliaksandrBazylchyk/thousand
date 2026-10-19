@@ -437,12 +437,12 @@ details[open] summary {
 }
 .marriages {
   display: block;
-  font-size: 0.75rem;
+  font-size: 0.7em;
   color: var(--muted);
 }
 
 .sym {
-  font-size: 0.8rem;
+  font-size: 0.85em;
   margin-left: 3px;
 }
 .sym.penalty {
@@ -459,4 +459,273 @@ details[open] summary {
 }
 .sym.muted {
   color: var(--muted);
+}
+
+/* ─── Иконки символов ─────────────────────────────────────────────────── */
+
+.sym {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  white-space: nowrap;
+}
+.sym .icon {
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.12em;
+}
+.sym-label {
+  font-weight: 600;
+}
+
+.score-table tr.clickable {
+  cursor: pointer;
+}
+.score-table tr.clickable:hover td {
+  background: var(--chip-on);
+}
+
+/* ─── Детали кона ─────────────────────────────────────────────────────── */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  background: rgb(0 0 0 / 0.45);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.modal {
+  width: 100%;
+  max-width: 720px;
+  max-height: 92vh;
+  overflow-y: auto;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+@media (min-width: 720px) {
+  .modal-backdrop {
+    align-items: center;
+  }
+  .modal {
+    border-radius: var(--radius);
+  }
+}
+
+.log {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.edit-row {
+  display: grid;
+  grid-template-columns: 72px 80px 1fr;
+  align-items: center;
+  gap: 8px;
+}
+.edit-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chip.small {
+  min-height: 36px;
+  min-width: 36px;
+  padding: 4px 8px;
+  font-size: 0.95rem;
+}
+
+/* ─── ТВ (ТЗ 6.3): 1920×1080, читается с 3–4 метров ───────────────────── */
+
+.tv {
+  --bg: #101114;
+  --surface: #181a1f;
+  --text: #f2efe8;
+  --muted: #9a968c;
+  --border: #2c2f36;
+  --chip-on: #1f3a30;
+  --accent: #46b383;
+  --penalty: #ff6b6b;
+  --barrel: #ffc53d;
+  --win: #ffd54f;
+  --good: #6fd38a;
+  color-scheme: dark;
+  position: fixed;
+  inset: 0;
+  display: grid;
+  grid-template-columns: 1fr minmax(240px, 19%);
+  gap: 1.2vw;
+  padding: 1.2vw;
+  background: var(--bg);
+  color: var(--text);
+  font-size: clamp(14px, 1.35vw, 44px);
+  overflow: hidden;
+}
+.tv-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(18px, 2.5vw, 64px);
+}
+.tv-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8vw;
+  min-height: 0;
+}
+.tv-head {
+  display: flex;
+  align-items: baseline;
+  gap: 1.5em;
+  flex-wrap: wrap;
+  font-size: 1.25em;
+}
+.tv-room {
+  color: var(--muted);
+}
+.tv-state {
+  display: flex;
+  gap: 1.2em;
+  flex-wrap: wrap;
+}
+.tv-bid {
+  color: var(--accent);
+}
+.tv-dark {
+  color: var(--text);
+  background: #333740;
+  padding: 0 0.4em;
+  border-radius: 0.3em;
+}
+.tv-penalty {
+  color: var(--penalty);
+}
+.tv-win {
+  color: var(--win);
+  font-weight: 700;
+}
+.tv-muted {
+  color: var(--muted);
+}
+
+.tv-scores {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 0.8vw;
+}
+.tv-score {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.6em;
+  padding: 0.4em 0.8em;
+  display: flex;
+  align-items: baseline;
+  gap: 0.6em;
+}
+.tv-score.win {
+  border-color: var(--win);
+}
+.tv-score-name {
+  font-size: 1.1em;
+}
+.tv-score-value {
+  font-size: 2.2em;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  margin-left: auto;
+}
+.tv-score-meta {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.8em;
+  color: var(--muted);
+}
+.tv-barrel {
+  color: var(--barrel);
+  font-weight: 700;
+}
+
+.tv-table {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.tv-table .score-table {
+  font-size: 1.15em;
+}
+.tv-table .score-table th,
+.tv-table .score-table td {
+  padding: 0.25em 0.6em;
+}
+.tv-table .score-table th {
+  font-size: 0.85em;
+  color: var(--muted);
+}
+.tv-table .cell .total {
+  display: inline;
+  margin-right: 0.3em;
+}
+.tv-table .syms {
+  display: inline;
+}
+.tv-table .sym {
+  font-size: 0.85em;
+}
+.tv-table .dealer-name {
+  display: inline;
+  max-width: none;
+  margin-right: 0.3em;
+}
+
+.tv-legend {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.6em;
+  padding: 0.8em;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
+  font-size: 0.8em;
+}
+.tv-legend h2 {
+  font-size: 1.1em;
+}
+.tv-legend ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45em;
+}
+.tv-legend li {
+  display: grid;
+  grid-template-columns: 5.5em 1fr;
+  gap: 0.5em;
+  align-items: center;
+}
+.tv-legend-syms .sym {
+  font-size: 1em;
+  margin-left: 0;
+}
+.tv-legend-syms {
+  display: flex;
+  gap: 0.3em;
+  flex-wrap: wrap;
+}
+.tv-toggle {
+  margin-top: auto;
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 0.4em;
+  padding: 0.3em 0.6em;
+  font: inherit;
+  font-size: 0.8em;
+  cursor: pointer;
 }

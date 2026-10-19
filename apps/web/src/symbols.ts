@@ -1,4 +1,5 @@
-// Текстовые обозначения символов таблицы (ТЗ 7.2). На этапе 3 их заменят SVG-иконки.
+// Символы таблицы (ТЗ 7.2). Иконка — SVG-файл в public/icons/<icon>.svg, подменяется без правки кода.
+// Подпись рядом с иконкой (ставка, номер попытки, −120) выводит приложение.
 
 import type { DealMark, Marriage, Mark, Suit } from '@thousand/core';
 
@@ -13,69 +14,120 @@ export const MARRIAGE_SYMBOL: Record<Marriage, string> = {
 export const SUITS: Suit[] = ['spades', 'clubs', 'diamonds', 'hearts'];
 export const MARRIAGES: Marriage[] = [...SUITS, 'aces'];
 
-/** Смысловой цвет символа. */
+export type IconName =
+  | 'bid-made'
+  | 'bid-failed'
+  | 'rospis'
+  | 'dark'
+  | 'bolt'
+  | 'prikup'
+  | 'barrel'
+  | 'barrel-fall'
+  | 'bulldozer'
+  | 'redeal'
+  | 'nine-bottom'
+  | 'misdeal'
+  | 'golden-thousand'
+  | 'winner';
+
+export const iconUrl = (icon: IconName) => `/icons/${icon}.svg`;
+
+/** Смысловой цвет подписи. */
 export type Tone = 'penalty' | 'barrel' | 'win' | 'good' | 'muted';
 
 export interface Symbol {
+  icon: IconName;
+  /** Подпись рядом с иконкой. */
+  label?: string;
+  /** Текстовое обозначение целиком — для alt и копирования. */
   text: string;
   tone?: Tone;
   title: string;
 }
 
+const PENALTY_LABEL = '−120';
+
 export function markSymbol(m: Mark): Symbol | null {
   switch (m.type) {
     case 'bidMade':
-      return { text: `▲${m.bid}`, tone: 'good', title: `Заказ ${m.bid} сыгран` };
+      return sym('bid-made', `${m.bid}`, '▲', 'good', `Заказ ${m.bid} сыгран`);
     case 'bidFailed':
-      return { text: `▼${m.bid}`, tone: 'penalty', title: `Заказ ${m.bid} не сыгран` };
+      return sym('bid-failed', `${m.bid}`, '▼', 'penalty', `Заказ ${m.bid} не сыгран`);
     case 'rospis':
-      return { text: `Р${m.bid}`, tone: 'penalty', title: `Роспись ${m.bid}` };
+      return sym('rospis', `${m.bid}`, 'Р', 'penalty', `Роспись ${m.bid}`);
     case 'dark':
-      return { text: '◐', title: 'Тёмная' };
+      return sym('dark', undefined, '◐', undefined, 'Тёмная');
     case 'goldenThousand':
-      return { text: '★', tone: 'win', title: 'Золотая тысяча' };
+      return sym('golden-thousand', undefined, '★', 'win', 'Золотая тысяча');
     case 'winner':
-      return { text: '♔', tone: 'win', title: 'Победитель партии' };
+      return sym('winner', undefined, '♔', 'win', 'Победитель партии');
     case 'bolt':
       return m.penalty
-        ? { text: '•−120', tone: 'penalty', title: `Третий болт (${m.count})` }
-        : { text: '•', tone: 'muted', title: `Болт (${m.count})` };
+        ? sym('bolt', PENALTY_LABEL, '•', 'penalty', `Третий болт (всего ${m.count})`)
+        : sym('bolt', undefined, '•', 'muted', `Болт (всего ${m.count})`);
     case 'prikup':
-      return { text: 'П', tone: 'muted', title: 'Сидит на прикупе' };
+      return sym('prikup', undefined, 'П', 'muted', 'Сидит на прикупе');
     case 'marriage':
       return null;
     case 'barrelSit':
-      return { text: '▣', tone: 'barrel', title: 'Сел на бочку' };
+      return sym('barrel', undefined, '▣', 'barrel', 'Сел на бочку');
     case 'barrel':
       return m.counted
-        ? { text: `▣${m.attempt}`, tone: 'barrel', title: `На бочке, кон ${m.attempt}` }
-        : { text: '▣', tone: 'barrel', title: 'На бочке, кон на прикупе не считается' };
+        ? sym('barrel', `${m.attempt}`, '▣', 'barrel', `На бочке, кон ${m.attempt}`)
+        : sym('barrel', undefined, '▣', 'barrel', 'На бочке, кон на прикупе не считается');
     case 'barrelFall':
-      return { text: '↓', tone: 'penalty', title: 'Падение с бочки' };
+      return sym('barrel-fall', undefined, '↓', 'penalty', FALL_TITLE[m.reason]);
     case 'bulldozer':
-      return { text: '⌀', tone: 'penalty', title: `Бульдозер (${m.from} → 0)` };
+      return sym('bulldozer', undefined, '⌀', 'penalty', `Бульдозер: ${m.from} → 0`);
     case 'dealPenalty':
-      return {
-        nine: { text: '✂−120', tone: 'penalty' as const, title: 'Девятка внизу 3 раза подряд' },
-        redeal: { text: '↻−120', tone: 'penalty' as const, title: 'Третья пересдача подряд' },
-        misdeal: { text: '✕−120', tone: 'penalty' as const, title: 'Неправильная раздача' },
-      }[m.kind];
+      switch (m.kind) {
+        case 'nine':
+          return sym('nine-bottom', PENALTY_LABEL, '✂', 'penalty', 'Девятка внизу 3 раза подряд');
+        case 'redeal':
+          return sym('redeal', PENALTY_LABEL, '↻', 'penalty', 'Третья пересдача подряд');
+        case 'misdeal':
+          return sym('misdeal', PENALTY_LABEL, '✕', 'penalty', 'Неправильная раздача');
+      }
   }
 }
+
+const FALL_TITLE: Record<Extract<Mark, { type: 'barrelFall' }>['reason'], string> = {
+  failedBid: 'Не сыграл ставку на бочке',
+  rospis: 'Расписал на бочке',
+  penalty: 'Штраф на бочке',
+  attempts: 'Не выиграл за 3 кона на бочке',
+  knocked: 'Сбит с бочки',
+  collision: 'Сели на бочку одновременно',
+};
 
 export function dealMarkSymbol(d: DealMark): Symbol {
   switch (d.type) {
     case 'nineAtBottom':
-      return { text: '✂9', tone: 'muted', title: `Девятка внизу при сдвиге (${d.count})` };
+      return sym('nine-bottom', '9', '✂', 'muted', `Девятка внизу при сдвиге (${d.count}-я)`);
     case 'misdeal':
-      return { text: '✕', tone: 'penalty', title: 'Неправильная раздача' };
-    case 'redeal':
-      return {
-        text: d.reason === 'fourJacks' ? '↻В' : d.reason === 'threeNines' ? '↻3×9' : '↻9',
-        tone: 'muted',
-        title: `Пересдача (${d.count})`,
-      };
+      return sym('misdeal', undefined, '✕', 'penalty', 'Неправильная раздача');
+    case 'redeal': {
+      const label = d.reason === 'fourJacks' ? 'В' : d.reason === 'threeNines' ? '3×9' : '9';
+      const reason = d.reason ? REDEAL_REASON_LABEL[d.reason] : 'причина не указана';
+      return sym('redeal', label, '↻', 'muted', `Пересдача: ${reason} (${d.count}-я подряд)`);
+    }
   }
+}
+
+function sym(
+  icon: IconName,
+  label: string | undefined,
+  glyph: string,
+  tone: Tone | undefined,
+  title: string,
+): Symbol {
+  return {
+    icon,
+    text: glyph + (label ?? ''),
+    title,
+    ...(label ? { label } : {}),
+    ...(tone ? { tone } : {}),
+  };
 }
 
 export const REDEAL_REASON_LABEL = {
@@ -83,3 +135,41 @@ export const REDEAL_REASON_LABEL = {
   fourJacks: '4 вальта',
   threeNines: '3 девятки у игрока на 100',
 } as const;
+
+/** Легенда справа от таблицы на ТВ (ТЗ 7.2). */
+export const LEGEND: { symbols: Symbol[]; meaning: string }[] = [
+  { symbols: [sym('bid-made', '120', '▲', 'good', '')], meaning: 'Заказ сыгран' },
+  { symbols: [sym('bid-failed', '120', '▼', 'penalty', '')], meaning: 'Заказ не сыгран' },
+  { symbols: [sym('rospis', '120', 'Р', 'penalty', '')], meaning: 'Роспись' },
+  { symbols: [sym('dark', undefined, '◐', undefined, '')], meaning: 'Тёмная' },
+  {
+    symbols: [
+      sym('bolt', undefined, '•', 'muted', ''),
+      sym('bolt', PENALTY_LABEL, '•', 'penalty', ''),
+    ],
+    meaning: 'Болт, третий болт',
+  },
+  { symbols: [sym('barrel', '1', '▣', 'barrel', '')], meaning: 'На бочке, номер кона' },
+  { symbols: [sym('barrel-fall', undefined, '↓', 'penalty', '')], meaning: 'Падение с бочки' },
+  { symbols: [sym('bulldozer', undefined, '⌀', 'penalty', '')], meaning: 'Бульдозер' },
+  {
+    symbols: [
+      sym('redeal', '9', '↻', 'muted', ''),
+      sym('redeal', 'В', '↻', 'muted', ''),
+      sym('redeal', '3×9', '↻', 'muted', ''),
+    ],
+    meaning: 'Пересдача: 4 девятки, 4 вальта, 3 девятки',
+  },
+  { symbols: [sym('nine-bottom', '9', '✂', 'muted', '')], meaning: 'Девятка внизу при сдвиге' },
+  {
+    symbols: [
+      sym('redeal', PENALTY_LABEL, '↻', 'penalty', ''),
+      sym('nine-bottom', PENALTY_LABEL, '✂', 'penalty', ''),
+    ],
+    meaning: 'Третья пересдача, третья девятка',
+  },
+  { symbols: [sym('misdeal', PENALTY_LABEL, '✕', 'penalty', '')], meaning: 'Неправильная раздача' },
+  { symbols: [sym('prikup', undefined, 'П', 'muted', '')], meaning: 'На прикупе' },
+  { symbols: [sym('golden-thousand', undefined, '★', 'win', '')], meaning: 'Золотая тысяча' },
+  { symbols: [sym('winner', undefined, '♔', 'win', '')], meaning: 'Победитель' },
+];

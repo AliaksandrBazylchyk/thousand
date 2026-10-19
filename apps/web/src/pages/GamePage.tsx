@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import type { PlayerId } from '@thousand/core';
 import { DealPanel } from '../components/DealPanel';
+import { HandDetails, LogList, useDetails } from '../components/HandDetails';
 import { PlayPanel } from '../components/PlayPanel';
 import { ScoreTable } from '../components/ScoreTable';
 import { ErrorText, useRun, type GameCtx } from '../components/ui';
@@ -12,6 +13,8 @@ export function GamePage() {
   const { view, error } = useGame(gameId);
   const [me] = useMe(code);
   const act = useAct(gameId, me?.id ?? null);
+  const [opened, setOpened] = useState<string | null>(null);
+  const [showMarriages, setShowMarriages] = useState(false);
 
   const ctx = useMemo<GameCtx | null>(() => {
     if (!view) return null;
@@ -36,7 +39,12 @@ export function GamePage() {
         <Link to={`/r/${code}`} className="muted small">
           ← {v.roomName}
         </Link>
-        <span className="small muted">Ведущий: {ctx.nameOf(v.hostId)}</span>
+        <span className="row small muted">
+          Ведущий: {ctx.nameOf(v.hostId)}
+          <Link to={`/r/${code}/g/${gameId}/tv`} className="small">
+            ТВ
+          </Link>
+        </span>
       </header>
 
       <StatusBar ctx={ctx} />
@@ -50,8 +58,26 @@ export function GamePage() {
       {v.status === 'active' && (v.draft ? <PlayPanel ctx={ctx} /> : <DealPanel ctx={ctx} />)}
       {v.status !== 'active' && <FinishedBanner ctx={ctx} />}
 
-      <ScoreTable view={v} me={ctx.me} />
+      <section className="stack-sm">
+        <div className="row between">
+          <h2>Таблица</h2>
+          <label className="small row">
+            <input
+              type="checkbox"
+              checked={showMarriages}
+              onChange={(e) => setShowMarriages(e.target.checked)}
+            />
+            марьяжи
+          </label>
+        </div>
+        <ScoreTable view={v} me={ctx.me} showMarriages={showMarriages} onOpen={setOpened} />
+        {v.state.rows.length > 0 && (
+          <p className="small muted">Нажмите на строку, чтобы увидеть детали кона.</p>
+        )}
+      </section>
       {ctx.isHost && v.status === 'active' && <HostMenu ctx={ctx} />}
+      <EditLog ctx={ctx} />
+      {opened && <HandDetails ctx={ctx} entryId={opened} onClose={() => setOpened(null)} />}
     </main>
   );
 }
@@ -135,5 +161,27 @@ function HostMenu({ ctx }: { ctx: GameCtx }) {
         <ErrorText error={error} />
       </div>
     </details>
+  );
+}
+
+/** Журнал правок партии (ТЗ 4): для разбора спорных исправлений. */
+function EditLog({ ctx }: { ctx: GameCtx }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <details className="card" onToggle={(e) => setOpen(e.currentTarget.open)}>
+      <summary>Журнал правок</summary>
+      {open && <EditLogBody ctx={ctx} />}
+    </details>
+  );
+}
+
+function EditLogBody({ ctx }: { ctx: GameCtx }) {
+  const details = useDetails(ctx);
+  if (!details) return <p className="muted small">Загрузка…</p>;
+  const entries = [...details.log].reverse();
+  return entries.length ? (
+    <LogList entries={entries} nameOf={ctx.nameOf} />
+  ) : (
+    <p className="muted small">Пусто</p>
   );
 }

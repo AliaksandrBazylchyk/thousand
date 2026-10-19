@@ -106,9 +106,62 @@ export type GameAction =
       prikupMarriage?: Suit | null;
     }
   | { type: 'confirmHand' }
+  | EditHandAction
+  | { type: 'deleteDealEvent'; eventId: string }
   | { type: 'setHost'; playerId: PlayerId }
   | { type: 'finishGame' }
   | { type: 'cancelGame' };
+
+/** Правка подтверждённого кона ведущим: данные кона заменяются целиком. */
+export interface EditHandAction {
+  type: 'editHand';
+  handId: string;
+  declarerId: PlayerId;
+  bid: number;
+  dark: DarkStatus;
+  rospis: boolean;
+  goldenThousand: boolean;
+  inputs: { playerId: PlayerId; tricks: number; marriages: Marriage[] }[];
+  prikup: { points: number; marriage: Suit | null } | null;
+}
+
+export interface HandDetail {
+  id: string;
+  declarerId: PlayerId;
+  bid: number;
+  dark: DarkStatus;
+  rospis: boolean;
+  goldenThousand: boolean;
+  confirmedAt: number | null;
+  inputs: DraftInput[];
+}
+
+export interface DealEventDetail {
+  id: string;
+  type: DealEventType;
+  reason: RedealReason | null;
+  dealerId: PlayerId;
+  playerId: PlayerId | null;
+  createdBy: PlayerId;
+  createdAt: number;
+}
+
+export interface EditLogEntry {
+  id: number;
+  handId: string | null;
+  actorId: PlayerId;
+  action: string;
+  before: unknown;
+  after: unknown;
+  createdAt: number;
+}
+
+/** Подробности партии для деталей ячейки и журнала правок. */
+export interface GameDetails {
+  hands: HandDetail[];
+  events: DealEventDetail[];
+  log: EditLogEntry[];
+}
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 export type JoinResult = { ok: true; view: GameView } | { ok: false; error: string };

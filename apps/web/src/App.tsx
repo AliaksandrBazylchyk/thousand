@@ -2,6 +2,7 @@ import { BrowserRouter, Route, Routes } from 'react-router';
 import { HomePage } from './pages/HomePage';
 import { RoomPage } from './pages/RoomPage';
 import { GamePage } from './pages/GamePage';
+import { TvGamePage, TvRoomPage } from './pages/TvPage';
 
 export function App() {
   return (
@@ -10,6 +11,8 @@ export function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/r/:code" element={<RoomPage />} />
         <Route path="/r/:code/g/:gameId" element={<GamePage />} />
+        <Route path="/r/:code/tv" element={<TvRoomPage />} />
+        <Route path="/r/:code/g/:gameId/tv" element={<TvGamePage />} />
         <Route path="*" element={<p className="page">Страница не найдена</p>} />
       </Routes>
     </BrowserRouter>
