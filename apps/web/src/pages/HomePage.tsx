@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { api } from '../api';
 import { getRecentRooms } from '../identity';
+import { useInstall } from '../pwa';
 
 export function HomePage() {
   const navigate = useNavigate();
@@ -9,6 +10,7 @@ export function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const recent = getRecentRooms();
+  const { available, install } = useInstall();
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -24,8 +26,18 @@ export function HomePage() {
 
   return (
     <main className="page">
-      <h1>Тысяча</h1>
+      <header className="row between">
+        <h1>Тысяча</h1>
+        <Link to="/settings" className="btn small">
+          Настройки
+        </Link>
+      </header>
       <p className="muted">Таблица счёта для живой игры в «Тысячу».</p>
+      {available && (
+        <button className="btn" onClick={() => void install()}>
+          Установить на телефон
+        </button>
+      )}
 
       <form className="card stack" onSubmit={submit}>
         <h2>Новая комната</h2>

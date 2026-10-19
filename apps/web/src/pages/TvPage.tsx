@@ -5,6 +5,7 @@ import { ScoreChart } from '../components/ScoreChart';
 import { ScoreTable } from '../components/ScoreTable';
 import { Sym } from '../components/Sym';
 import { useGame, useRoom } from '../hooks';
+import { useSettings } from '../settings';
 import { LEGEND } from '../symbols';
 
 /** ТВ по ссылке комнаты: показывает идущую партию и сам переключается на новую. */
@@ -29,7 +30,8 @@ export function TvGamePage() {
 function TvGame({ gameId }: { gameId: string }) {
   const { view, error } = useGame(gameId);
   const [params, setParams] = useSearchParams();
-  const showMarriages = params.get('m') === '1';
+  const settings = useSettings();
+  const showMarriages = params.has('m') ? params.get('m') === '1' : settings.marriages;
   useWakeLock();
 
   if (error) return <div className="tv tv-message">{error}</div>;
@@ -73,7 +75,7 @@ function TvGame({ gameId }: { gameId: string }) {
         </ul>
         <button
           className="tv-toggle"
-          onClick={() => setParams(showMarriages ? {} : { m: '1' }, { replace: true })}
+          onClick={() => setParams({ m: showMarriages ? '0' : '1' }, { replace: true })}
         >
           Марьяжи в таблице: {showMarriages ? 'вкл' : 'выкл'}
         </button>

@@ -5,6 +5,7 @@ import { Server } from 'socket.io';
 import { ZodError, type ZodType } from 'zod';
 import type { ClientToServerEvents, ServerToClientEvents } from '@thousand/core';
 import { defaultMigrationsFolder, openDb } from './db';
+import { exportCsv, exportFileName, exportJson } from './game/export';
 import { createGameService, GameError } from './game/service';
 import {
   actionPayloadSchema,
@@ -21,7 +22,11 @@ const DB_FILE = process.env.DB_FILE ?? resolve('data', 'thousand.sqlite');
 const WEB_DIST = process.env.WEB_DIST ?? resolve('..', 'web', 'dist');
 
 const db = openDb(DB_FILE, defaultMigrationsFolder());
-const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? 'info' } });
+const app = Fastify({
+  logger: { level: process.env.LOG_LEVEL ?? 'info' },
+  // За nginx: реальный IP клиента берётся из X-Forwarded-For.
+  trustProxy: process.env.TRUST_PROXY === '1',
+});
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(app.server, {
   serveClient: false,
 });
@@ -83,6 +88,25 @@ app.get<{ Params: { id: string } }>('/api/games/:id', (req, reply) =>
   handle(reply, () => service.getView(req.params.id)),
 );
 
+app.get<{ Params: { id: string }; Querystring: { format?: string } }>(
+  '/api/games/:id/export',
+  (req, reply) =>
+    handle(reply, () => {
+      const view = service.getView(req.params.id);
+      const csv = req.query.format === 'csv';
+      const name = exportFileName(view, csv ? 'csv' : 'json');
+      void reply
+        .header(
+          'Content-Disposition',
+          `attachment; filename="${name}"; filename*=UTF-8''${encodeURIComponent(name)}`,
+        )
+        .type(csv ? 'text/csv; charset=utf-8' : 'application/json; charset=utf-8');
+      return csv
+        ? exportCsv(view)
+        : JSON.stringify(exportJson(view, service.details(req.params.id)), null, 2);
+    }),
+);
+
 app.get<{ Params: { id: string } }>('/api/games/:id/details', (req, reply) =>
   handle(reply, () => service.details(req.params.id)),
 );
@@ -91,7 +115,18 @@ app.get<{ Params: { id: string } }>('/api/games/:id/details', (req, reply) =>
 
 if (existsSync(WEB_DIST)) {
   const { default: fastifyStatic } = await import('@fastify/static');
-  await app.register(fastifyStatic, { root: WEB_DIST, wildcard: false });
+  await app.register(fastifyStatic, {
+    root: WEB_DIST,
+    wildcard: false,
+    setHeaders: (res, path) => {
+      // Сборка Vite с хешами в именах — кешируется навсегда; остальное (index.html, sw.js) — нет.
+      if (/[\\/]assets[\\/]/.test(path)) {
+        res.header('Cache-Control', 'public, max-age=31536000, immutable');
+      } else {
+        res.header('Cache-Control', 'no-cache');
+      }
+    },
+  });
   app.setNotFoundHandler((req, reply) => {
     if (req.url.startsWith('/api/')) return reply.code(404).send({ error: 'Не найдено' });
     return reply.sendFile('index.html');

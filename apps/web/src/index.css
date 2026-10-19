@@ -29,7 +29,8 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
     --bg: #15140f;
     --surface: #211f19;
     --text: #ece7dc;
@@ -48,6 +49,31 @@
     --series-3: #199e70;
     --series-4: #c98500;
   }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #15140f;
+  --surface: #211f19;
+  --text: #ece7dc;
+  --muted: #a39c8f;
+  --border: #3a362d;
+  --accent: #3fa57a;
+  --accent-text: #0d1a14;
+  --chip-on: #24453a;
+  --penalty: #ef5350;
+  --barrel: #f0b429;
+  --win: #ffd54f;
+  --good: #66bb6a;
+  --warn: #ffa726;
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
 }
 
 * {
@@ -451,7 +477,7 @@ details[open] summary {
 }
 
 .sym {
-  font-size: 0.85em;
+  font-size: calc(var(--sym-scale, 0.85) * 1em);
   margin-left: 3px;
 }
 .sym.penalty {
@@ -893,4 +919,26 @@ details[open] summary {
 .tv-chart .chart-legend i {
   width: 0.7em;
   height: 0.7em;
+}
+
+.sym-text {
+  font-weight: 600;
+}
+
+.legend-preview {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 6px 12px;
+}
+.legend-preview li {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  align-items: center;
+  gap: 8px;
+}
+.btn.back {
+  align-self: flex-start;
 }

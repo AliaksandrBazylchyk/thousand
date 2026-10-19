@@ -1,0 +1,25 @@
+# systemd-юнит сервера «Тысячи».
+# Установка: sudo cp deploy/thousand.service /etc/systemd/system/ && sudo systemctl enable --now thousand
+[Unit]
+Description=Thousand score table (Node.js)
+After=network.target
+
+[Service]
+Type=simple
+User=thousand
+Group=thousand
+WorkingDirectory=/opt/thousand/apps/server
+EnvironmentFile=/etc/thousand.env
+ExecStart=/usr/bin/node dist/index.js
+Restart=on-failure
+RestartSec=3
+
+# Ограничения: пишет только в каталог базы.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/thousand
+
+[Install]
+WantedBy=multi-user.target

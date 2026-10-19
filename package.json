@@ -12,6 +12,7 @@
   "scripts": {
     "dev": "concurrently -k -n server,web -c blue,green \"npm run dev -w @thousand/server\" \"npm run dev -w @thousand/web\"",
     "build": "npm run build -w @thousand/server && npm run build -w @thousand/web",
+    "start": "npm run start -w @thousand/server",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint .",
     "format": "prettier --write .",

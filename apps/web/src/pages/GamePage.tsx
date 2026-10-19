@@ -9,6 +9,7 @@ import { ScoreTable } from '../components/ScoreTable';
 import { GameStatsTable } from '../components/Stats';
 import { ErrorText, useRun, type GameCtx } from '../components/ui';
 import { useAct, useGame, useMe } from '../hooks';
+import { useSettings } from '../settings';
 
 export function GamePage() {
   const { code = '', gameId = '' } = useParams();
@@ -16,7 +17,8 @@ export function GamePage() {
   const [me] = useMe(code);
   const act = useAct(gameId, me?.id ?? null);
   const [opened, setOpened] = useState<string | null>(null);
-  const [showMarriages, setShowMarriages] = useState(false);
+  const settings = useSettings();
+  const [showMarriages, setShowMarriages] = useState(settings.marriages);
 
   const ctx = useMemo<GameCtx | null>(() => {
     if (!view) return null;
@@ -74,7 +76,18 @@ export function GamePage() {
         </div>
         <ScoreTable view={v} me={ctx.me} showMarriages={showMarriages} onOpen={setOpened} />
         {v.state.rows.length > 0 && (
-          <p className="small muted">Нажмите на строку, чтобы увидеть детали кона.</p>
+          <p className="row between small muted">
+            <span>Нажмите на строку, чтобы увидеть детали кона.</span>
+            <span className="row">
+              Экспорт:
+              <a href={`/api/games/${v.id}/export?format=csv`} download>
+                CSV
+              </a>
+              <a href={`/api/games/${v.id}/export?format=json`} download>
+                JSON
+              </a>
+            </span>
+          </p>
         )}
       </section>
       {v.state.rows.length > 0 && <GameStats ctx={ctx} />}

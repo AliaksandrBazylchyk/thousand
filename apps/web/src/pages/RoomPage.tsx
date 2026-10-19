@@ -34,6 +34,9 @@ export function RoomPage() {
           <Link className="btn small" to={`/r/${room.code}/stats`}>
             Статистика
           </Link>
+          <Link className="btn small" to="/settings">
+            Настройки
+          </Link>
         </div>
       </header>
 
