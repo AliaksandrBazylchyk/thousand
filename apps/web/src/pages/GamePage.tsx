@@ -4,7 +4,9 @@ import type { PlayerId } from '@thousand/core';
 import { DealPanel } from '../components/DealPanel';
 import { HandDetails, LogList, useDetails } from '../components/HandDetails';
 import { PlayPanel } from '../components/PlayPanel';
+import { ScoreChart } from '../components/ScoreChart';
 import { ScoreTable } from '../components/ScoreTable';
+import { GameStatsTable } from '../components/Stats';
 import { ErrorText, useRun, type GameCtx } from '../components/ui';
 import { useAct, useGame, useMe } from '../hooks';
 
@@ -75,6 +77,7 @@ export function GamePage() {
           <p className="small muted">Нажмите на строку, чтобы увидеть детали кона.</p>
         )}
       </section>
+      {v.state.rows.length > 0 && <GameStats ctx={ctx} />}
       {ctx.isHost && v.status === 'active' && <HostMenu ctx={ctx} />}
       <EditLog ctx={ctx} />
       {opened && <HandDetails ctx={ctx} entryId={opened} onClose={() => setOpened(null)} />}
@@ -183,5 +186,22 @@ function EditLogBody({ ctx }: { ctx: GameCtx }) {
     <LogList entries={entries} nameOf={ctx.nameOf} />
   ) : (
     <p className="muted small">Пусто</p>
+  );
+}
+
+/** Срез «текущая партия» и график хода партии (ТЗ 8). */
+function GameStats({ ctx }: { ctx: GameCtx }) {
+  const finished = ctx.view.status !== 'active';
+  const [open, setOpen] = useState(finished);
+  return (
+    <details className="card" open={finished} onToggle={(e) => setOpen(e.currentTarget.open)}>
+      <summary>Ход партии и статистика</summary>
+      {open && (
+        <div className="stack">
+          <ScoreChart view={ctx.view} />
+          <GameStatsTable view={ctx.view} />
+        </div>
+      )}
+    </details>
   );
 }

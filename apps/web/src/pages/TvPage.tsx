@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import type { GameView, PlayerId } from '@thousand/core';
+import { ScoreChart } from '../components/ScoreChart';
 import { ScoreTable } from '../components/ScoreTable';
 import { Sym } from '../components/Sym';
 import { useGame, useRoom } from '../hooks';
@@ -42,6 +43,14 @@ function TvGame({ gameId }: { gameId: string }) {
           <CurrentState view={view} />
         </header>
         <Scores view={view} />
+        {view.status === 'finished' && view.state.rows.length > 0 && (
+          <ScoreChart
+            view={view}
+            className="tv-chart"
+            height={Math.round(window.innerHeight * 0.38)}
+            labelWidth={220}
+          />
+        )}
         <ScoreTable view={view} showMarriages={showMarriages} autoScroll className="tv-table" />
       </main>
       <aside className="tv-legend">

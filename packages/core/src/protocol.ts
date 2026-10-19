@@ -11,6 +11,7 @@ import type {
   Row,
   Suit,
 } from './types';
+import type { StatsResult } from './stats';
 
 export type GameStatus = 'active' | 'finished' | 'cancelled';
 
@@ -161,6 +162,16 @@ export interface GameDetails {
   hands: HandDetail[];
   events: DealEventDetail[];
   log: EditLogEntry[];
+}
+
+/** Статистика комнаты по завершённым партиям (ТЗ 8). */
+export interface RoomStatsView {
+  roomName: string;
+  code: string;
+  players: PlayerRef[];
+  games: number;
+  hands: number;
+  stats: StatsResult;
 }
 
 export type ActionResult = { ok: true } | { ok: false; error: string };

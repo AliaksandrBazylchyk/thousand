@@ -1,5 +1,6 @@
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import {
+  computeStats,
   replay,
   validateHand,
   type DealEventEntry,
@@ -15,6 +16,7 @@ import {
   type HandEntry,
   type IssueCode,
   type PlayerId,
+  type RoomStatsView,
   type RoomView,
   type Turn,
 } from '@thousand/core';
@@ -664,6 +666,40 @@ export function createGameService(db: Db, onChange: (gameId: string, roomId: str
     }
   }
 
+  function roomStats(code: string): RoomStatsView {
+    const room = roomByCode(code);
+    const finished = db
+      .select({ id: games.id })
+      .from(games)
+      .where(and(eq(games.roomId, room.id), eq(games.status, 'finished')))
+      .all()
+      .map((g) => getView(g.id));
+    const pool = db
+      .select({ id: players.id, name: players.name })
+      .from(players)
+      .where(eq(players.roomId, room.id))
+      .orderBy(asc(players.name))
+      .all();
+    return {
+      roomName: room.name,
+      code: room.code,
+      players: pool,
+      games: finished.length,
+      hands: finished.reduce((n, v) => n + v.state.rows.filter((r) => r.kind === 'hand').length, 0),
+      stats: computeStats(
+        finished.map((v) => ({
+          id: v.id,
+          seats: v.seats.map((x) => x.id),
+          state: v.state,
+          finished: true,
+          winnerId: v.winnerId,
+          startedAt: v.startedAt,
+          finishedAt: v.finishedAt,
+        })),
+      ),
+    };
+  }
+
   function details(gameId: string): GameDetails {
     const g = load(gameId);
     const log = db
@@ -713,7 +749,7 @@ export function createGameService(db: Db, onChange: (gameId: string, roomId: str
     return seq;
   }
 
-  return { createRoom, roomView, ensurePlayer, createGame, getView, details, act };
+  return { createRoom, roomView, roomStats, ensurePlayer, createGame, getView, details, act };
 }
 
 export type GameService = ReturnType<typeof createGameService>;

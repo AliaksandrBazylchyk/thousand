@@ -62,6 +62,10 @@ app.get<{ Params: { code: string } }>('/api/rooms/:code', (req, reply) =>
   handle(reply, () => service.roomView(req.params.code)),
 );
 
+app.get<{ Params: { code: string } }>('/api/rooms/:code/stats', (req, reply) =>
+  handle(reply, () => service.roomStats(req.params.code)),
+);
+
 app.post<{ Params: { code: string } }>('/api/rooms/:code/players', (req, reply) =>
   handle(reply, () =>
     service.ensurePlayer(req.params.code, parse(createPlayerSchema, req.body).name),

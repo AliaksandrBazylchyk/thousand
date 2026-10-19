@@ -6,3 +6,4 @@ export type * from './protocol';
 export * from './rules';
 export { validateHand } from './validate';
 export { replay } from './replay';
+export * from './stats';

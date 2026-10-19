@@ -1,4 +1,4 @@
-import type { GameDetails, PlayerId, PlayerRef, RoomView } from '@thousand/core';
+import type { GameDetails, PlayerId, PlayerRef, RoomStatsView, RoomView } from '@thousand/core';
 
 async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
   const res = await fetch(url, {
@@ -25,4 +25,6 @@ export const api = {
     }),
   getDetails: (gameId: string) =>
     request<GameDetails>('GET', `/api/games/${encodeURIComponent(gameId)}/details`),
+  getRoomStats: (code: string) =>
+    request<RoomStatsView>('GET', `/api/rooms/${encodeURIComponent(code)}/stats`),
 };

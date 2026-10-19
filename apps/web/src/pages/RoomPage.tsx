@@ -31,6 +31,9 @@ export function RoomPage() {
           <Link className="btn small" to={`/r/${room.code}/tv`} target="_blank">
             Таблица для ТВ
           </Link>
+          <Link className="btn small" to={`/r/${room.code}/stats`}>
+            Статистика
+          </Link>
         </div>
       </header>
 
