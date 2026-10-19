@@ -1,0 +1,5 @@
+dist
+coverage
+node_modules
+package-lock.json
+tz-web-resource-1000.md
