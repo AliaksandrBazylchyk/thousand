@@ -1,5 +1,6 @@
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import {
+  CARD_POINTS_TOTAL,
   computeStats,
   replay,
   validateHand,
@@ -252,11 +253,14 @@ export function createGameService(db: Db, onChange: (gameId: string, roomId: str
   }
 
   function buildDraft(g: LoadedGame, hand: HandRow, inputs: InputRow[]): DraftHand {
-    const entry = toHandEntry(hand, inputs, g.setup);
+    const turn = g.state.current?.turn;
+    // Последнему невведённому игроку — остаток до 120 (подсчитано автоматически).
+    const auto = turn ? autoRemainder(hand, inputs, turn) : null;
+    const withAuto = auto ? [...inputs, auto] : inputs;
+    const entry = toHandEntry(hand, withAuto, g.setup);
     const previewState = replay(g.setup, [...g.entries, entry]);
     const lastRow = previewState.rows.at(-1);
     const preview = lastRow?.entryId === hand.id ? lastRow : null;
-    const turn = g.state.current?.turn;
 
     const waitingFor: PlayerId[] = [];
     if (turn && !hand.goldenThousand) {
@@ -275,6 +279,7 @@ export function createGameService(db: Db, onChange: (gameId: string, roomId: str
       goldenThousand: hand.goldenThousand,
       inputs: Object.fromEntries(inputs.map((i) => [i.playerId, toDraftInput(i)])),
       waitingFor,
+      auto: auto ? { playerId: auto.playerId, tricks: auto.tricks! } : null,
       preview,
       issues: preview?.issues ?? [],
     };
@@ -486,6 +491,7 @@ export function createGameService(db: Db, onChange: (gameId: string, roomId: str
               ? pick(action.prikupMarriage, before?.prikupMarriage, null)
               : null,
             enteredBy: actorId,
+            auto: false,
             updatedAt: new Date(),
           };
           db.insert(handInputs)
@@ -502,18 +508,25 @@ export function createGameService(db: Db, onChange: (gameId: string, roomId: str
           const view = buildDraft(g, draft, g.draftInputs);
           const error = view.issues.find((i) => i.level === 'error');
           if (error) throw new GameError(error.message);
+          // Остаток до 120 у последнего невведённого игрока сохраняется с отметкой «авто».
+          const auto = autoRemainder(draft, g.draftInputs, turn);
+          const inputs = auto ? [...g.draftInputs, { ...auto, enteredBy: actorId }] : g.draftInputs;
+          if (auto)
+            db.insert(handInputs)
+              .values({ ...auto, enteredBy: actorId })
+              .run();
           db.update(hands)
             .set({ status: 'confirmed', confirmedAt: new Date() })
             .where(eq(hands.id, draft.id))
             .run();
-          const after = replay(g.setup, [...g.entries, toHandEntry(draft, g.draftInputs, g.setup)]);
+          const after = replay(g.setup, [...g.entries, toHandEntry(draft, inputs, g.setup)]);
           if (after.winner) {
             db.update(games)
               .set({ status: 'finished', winnerId: after.winner, finishedAt: new Date() })
               .where(eq(games.id, gameId))
               .run();
           }
-          log('confirmHand', null, handSnapshot(draft, g.draftInputs), draft.id);
+          log('confirmHand', null, handSnapshot(draft, inputs), draft.id);
           break;
         }
 
@@ -580,6 +593,8 @@ export function createGameService(db: Db, onChange: (gameId: string, roomId: str
             prikupPoints: null,
             prikupMarriage: null,
             enteredBy: same ? old.enteredBy : actorId,
+            // Отметка «подсчитано автоматически» остаётся, только пока значение не меняли.
+            auto: same ? old.auto : false,
             updatedAt: same ? old.updatedAt : now,
           };
         });
@@ -596,6 +611,7 @@ export function createGameService(db: Db, onChange: (gameId: string, roomId: str
             prikupPoints: action.prikup.points,
             prikupMarriage: action.prikup.marriage,
             enteredBy: same ? old.enteredBy : actorId,
+            auto: false,
             updatedAt: same ? old.updatedAt : now,
           });
         }
@@ -844,6 +860,30 @@ function sameList<T>(a: readonly T[], b: readonly T[]): boolean {
   return a.length === b.length && a.every((x) => b.includes(x));
 }
 
+/**
+ * Остаток до 120 для последнего невведённого игрока: все остальные играющие уже ввели взятки,
+ * их сумма не больше 120, кон без росписи и золотой тысячи. Марьяжей у такого ввода нет.
+ */
+function autoRemainder(hand: HandRow, inputs: InputRow[], turn: Turn): InputRow | null {
+  if (hand.rospis || hand.goldenThousand) return null;
+  const entered = (p: PlayerId) => inputs.find((i) => i.playerId === p && i.tricks !== null);
+  const missing = turn.active.filter((p) => !entered(p));
+  if (missing.length !== 1) return null;
+  const sum = turn.active.reduce((s, p) => s + (entered(p)?.tricks ?? 0), 0);
+  if (sum > CARD_POINTS_TOTAL) return null;
+  return {
+    handId: hand.id,
+    playerId: missing[0]!,
+    tricks: CARD_POINTS_TOTAL - sum,
+    marriages: [],
+    prikupPoints: null,
+    prikupMarriage: null,
+    enteredBy: 'auto',
+    auto: true,
+    updatedAt: new Date(),
+  };
+}
+
 function toDraftInput(i: InputRow): DraftInput {
   return {
     playerId: i.playerId,
@@ -852,6 +892,7 @@ function toDraftInput(i: InputRow): DraftInput {
     prikupPoints: i.prikupPoints,
     prikupMarriage: i.prikupMarriage,
     enteredBy: i.enteredBy,
+    auto: i.auto,
     updatedAt: i.updatedAt.getTime(),
   };
 }

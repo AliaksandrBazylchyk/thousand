@@ -9,6 +9,7 @@ import {
   type PlayerId,
   type Suit,
 } from '@thousand/core';
+import { inputText } from '../editLog';
 import { MARRIAGES, MARRIAGE_SYMBOL, SUITS } from '../symbols';
 import { BidStepper, ErrorText, useRun, type GameCtx } from './ui';
 
@@ -21,48 +22,134 @@ export function PlayPanel({ ctx }: { ctx: GameCtx }) {
   const iPlay = me !== null && turn.active.includes(me);
   // Золотую тысячу отмечает заказавший в своём вводе, поэтому его форма видна и после отметки.
   const showMyTricks = iPlay && !draft.rospis && (iAmDeclarer || !draft.goldenThousand);
+  const myInput = me ? draft.inputs[me] : undefined;
+  // Этап «Ожидание» (ТЗ 6.1): после ввода форма сворачивается в строку с кнопкой «Изменить».
+  const [editMine, setEditMine] = useState(false);
 
   return (
     <section className="card stack">
-      <h2>
-        Кон {handNumber} · заказал {nameOf(draft.declarerId)}: {draft.bid}
-        {draft.dark === 'played' && ' ◐'}
-      </h2>
-      <p className="small muted">
-        Раздаёт {nameOf(turn.dealer)}
-        {turn.prikupSitter && ' (на прикупе)'}
-        {draft.rospis && ' · роспись'}
-        {draft.goldenThousand && ' · золотая тысяча'}
-      </p>
+      <div className="panel-head">
+        <h2>
+          Кон {handNumber} · {nameOf(draft.declarerId)}: {draft.bid}
+          {draft.dark === 'played' && ' ◐'}
+        </h2>
+        <span className="small muted">раздаёт {nameOf(turn.dealer)}</span>
+      </div>
+      {(draft.rospis || draft.goldenThousand) && (
+        <p className={`small ${draft.goldenThousand ? 'gold-text' : 'warn'}`}>
+          {draft.goldenThousand ? 'Золотая тысяча' : 'Роспись'}
+        </p>
+      )}
 
       {iAmDeclarer && !draft.goldenThousand && <DeclarerControls ctx={ctx} />}
 
-      {showMyTricks && (
-        <TricksEditor
-          key={`${me}-${draft.inputs[me!]?.updatedAt ?? 0}-${draft.goldenThousand}`}
-          ctx={ctx}
-          playerId={me!}
-          input={draft.inputs[me!]}
-          title={iAmDeclarer ? `Мои очки (нужно ${draft.bid})` : 'Мои очки'}
-        />
-      )}
-      {me === turn.prikupSitter && !draft.goldenThousand && (
-        <PrikupEditor
-          key={`${me}-${draft.inputs[me!]?.updatedAt ?? 0}`}
-          ctx={ctx}
-          playerId={me!}
-          input={draft.inputs[me!]}
-        />
-      )}
+      {showMyTricks &&
+        (myInput?.tricks != null || (iAmDeclarer && draft.goldenThousand)) &&
+        !editMine && (
+          <InputDone
+            label="Мои очки"
+            text={draft.goldenThousand && iAmDeclarer ? 'золотая тысяча' : inputText(myInput)}
+            onEdit={() => setEditMine(true)}
+          />
+        )}
+      {showMyTricks &&
+        ((myInput?.tricks == null && !(iAmDeclarer && draft.goldenThousand)) || editMine) && (
+          <TricksEditor
+            key={`${me}-${myInput?.updatedAt ?? 0}-${draft.goldenThousand}`}
+            ctx={ctx}
+            playerId={me!}
+            input={myInput}
+            title={iAmDeclarer ? `Мои очки · нужно ${draft.bid}` : 'Мои очки'}
+            onDone={() => setEditMine(false)}
+          />
+        )}
+      {me === turn.prikupSitter &&
+        !draft.goldenThousand &&
+        (myInput?.prikupPoints != null && !editMine ? (
+          <InputDone
+            label="Мой прикуп"
+            text={inputText(myInput)}
+            onEdit={() => setEditMine(true)}
+          />
+        ) : (
+          <PrikupEditor
+            key={`${me}-${myInput?.updatedAt ?? 0}`}
+            ctx={ctx}
+            playerId={me!}
+            input={myInput}
+            onDone={() => setEditMine(false)}
+          />
+        ))}
 
-      {draft.waitingFor.length > 0 ? (
-        <p className="small">Ждём ввод: {draft.waitingFor.map(nameOf).join(', ')}</p>
-      ) : (
-        <p className="small good">Все ввели, ждём подтверждения ведущего</p>
-      )}
+      {/* Ведущему это видно в его сводке. */}
+      {!isHost &&
+        (draft.waitingFor.length > 0 ? (
+          <p className="small">Ждём ввод: {draft.waitingFor.map(nameOf).join(', ')}</p>
+        ) : (
+          <p className="small good">Все ввели, ждём подтверждения ведущего</p>
+        ))}
 
       {isHost && <HostReview ctx={ctx} />}
     </section>
+  );
+}
+
+/**
+ * Золотая тысяча — маленькая золотая пика рядом с марьяжами в любом вводе очков.
+ * Отметить её может только заказавший (ТЗ 2.2), у остальных значок неактивен и объясняет почему.
+ */
+export function GoldenChip({
+  on,
+  enabled,
+  declarer,
+  onToggle,
+  small = false,
+}: {
+  on: boolean;
+  enabled: boolean;
+  declarer: string;
+  onToggle: () => void;
+  small?: boolean;
+}) {
+  const title = enabled
+    ? 'Золотая тысяча: 4 короля и 4 дамы после прикупа — победа в партии'
+    : `Золотая тысяча бывает только у заказавшего (${declarer})`;
+  return (
+    <button
+      type="button"
+      className={`chip golden ${small ? 'small' : ''} ${on ? 'on' : ''}`}
+      title={title}
+      aria-label={title}
+      aria-pressed={on}
+      disabled={!enabled}
+      onClick={onToggle}
+    >
+      ♠
+    </button>
+  );
+}
+
+/** Значок «подсчитано автоматически» у остатка до 120. */
+export function AutoBadge() {
+  const title = 'Подсчитано автоматически: 120 минус очки остальных игроков';
+  return (
+    <span className="auto-badge" title={title} aria-label={title} role="img">
+      ∑
+    </span>
+  );
+}
+
+/** Свой ввод уже отправлен: одна строка вместо формы. */
+function InputDone({ label, text, onEdit }: { label: string; text: string; onEdit: () => void }) {
+  return (
+    <div className="input-done">
+      <span>
+        {label}: <b>{text}</b>
+      </span>
+      <button className="btn small" onClick={onEdit}>
+        Изменить
+      </button>
+    </div>
   );
 }
 
@@ -74,7 +161,7 @@ function DeclarerControls({ ctx }: { ctx: GameCtx }) {
 
   return (
     <div className="stack-sm">
-      <h3>Ставка после прикупа</h3>
+      <span className="label-small">Ставка после прикупа</span>
       <BidStepper
         value={draft.bid}
         min={minBid}
@@ -100,7 +187,7 @@ function DeclarerControls({ ctx }: { ctx: GameCtx }) {
             )
           }
         >
-          Прикуп неигровой (≤4)
+          Прикуп ≤4 · неигровой
         </button>
       </div>
       <ErrorText error={error} />
@@ -153,15 +240,21 @@ function TricksEditor({
 
   return (
     <div className="stack-sm input-block">
-      <h3>{title}</h3>
-      <input
-        className="input big"
-        inputMode="numeric"
-        pattern="[0-9]*"
-        placeholder="Очки взяток"
-        value={tricks}
-        onChange={(e) => setTricks(e.target.value.replace(/\D/g, ''))}
-      />
+      <span className="label-small">{title}</span>
+      <div className="input-row">
+        <input
+          className="input big"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          placeholder="Очки взяток"
+          aria-label="Очки взяток"
+          value={tricks}
+          onChange={(e) => setTricks(e.target.value.replace(/\D/g, ''))}
+        />
+        <button className="btn primary" disabled={busy || !valid} onClick={save}>
+          {input?.tricks != null || draft.goldenThousand ? 'Сохранить' : 'Готово'}
+        </button>
+      </div>
       <div className="chips">
         {MARRIAGES.map((m) => (
           <button
@@ -173,22 +266,14 @@ function TricksEditor({
             {MARRIAGE_SYMBOL[m]}
           </button>
         ))}
-        {canGolden && (
-          <button
-            type="button"
-            className={`chip golden ${golden ? 'on' : ''}`}
-            title="Золотая тысяча: 4 короля и 4 дамы"
-            aria-label="Золотая тысяча"
-            onClick={() => setGolden(!golden)}
-          >
-            ♠
-          </button>
-        )}
+        <GoldenChip
+          on={golden}
+          enabled={canGolden}
+          declarer={ctx.nameOf(draft.declarerId)}
+          onToggle={() => setGolden(!golden)}
+        />
       </div>
       {golden && <p className="small gold-text">Золотая тысяча — победа в партии</p>}
-      <button className="btn primary" disabled={busy || !valid} onClick={save}>
-        {input?.tricks != null || draft.goldenThousand ? 'Сохранить' : 'Готово'}
-      </button>
       {input?.tricks != null && (
         <p className="small muted">
           Введено: {input.tricks}
@@ -231,7 +316,7 @@ function PrikupEditor({
 
   return (
     <div className="stack-sm input-block">
-      <h3>Прикуп ({ctx.nameOf(playerId)} на прикупе)</h3>
+      <span className="label-small">Прикуп · {ctx.nameOf(playerId)} на прикупе</span>
       <div className="chips">
         <button
           type="button"
@@ -251,17 +336,20 @@ function PrikupEditor({
           </button>
         ))}
       </div>
-      <input
-        className="input big"
-        inputMode="numeric"
-        pattern="[0-9]*"
-        placeholder={marriage ? 'Очки третьей карты' : 'Очки прикупа'}
-        value={points}
-        onChange={(e) => setPoints(e.target.value.replace(/\D/g, ''))}
-      />
-      <button className="btn primary" disabled={busy || !valid} onClick={save}>
-        {input?.prikupPoints != null ? 'Сохранить' : 'Готово'}
-      </button>
+      <div className="input-row">
+        <input
+          className="input big"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          placeholder={marriage ? 'Третья карта' : 'Очки прикупа'}
+          aria-label={marriage ? 'Очки третьей карты' : 'Очки прикупа'}
+          value={points}
+          onChange={(e) => setPoints(e.target.value.replace(/\D/g, ''))}
+        />
+        <button className="btn primary" disabled={busy || !valid} onClick={save}>
+          {input?.prikupPoints != null ? 'Сохранить' : 'Готово'}
+        </button>
+      </div>
       <ErrorText error={error} />
     </div>
   );
@@ -275,21 +363,39 @@ function HostReview({ ctx }: { ctx: GameCtx }) {
   const { run, busy, error } = useRun(ctx.act);
   const [editing, setEditing] = useState<PlayerId | null>(null);
   const needsTricks = !draft.rospis;
-  const trickSum = turn.active.reduce((sum, p) => sum + (draft.inputs[p]?.tricks ?? 0), 0);
+  const entered = turn.active.reduce((sum, p) => sum + (draft.inputs[p]?.tricks ?? 0), 0);
+  // С автоматическим остатком у последнего невведённого сумма — ровно 120.
+  const trickSum = entered + (draft.auto?.tricks ?? 0);
+  const anyEntered = turn.active.some((p) => draft.inputs[p]?.tricks != null);
   const hasErrors = draft.issues.some((i) => i.level === 'error');
+  // «Нет ввода» и сумма взяток уже видны в таблице сводки — не повторяем их списком.
+  const shownIssues = draft.issues.filter(
+    (i) => i.code !== 'missingInput' && i.code !== 'trickSum',
+  );
+  const allEntered = draft.waitingFor.length === 0;
 
   return (
-    <div className="stack host-review">
-      <h3>Ведущий: проверка кона</h3>
+    <div className="stack-sm host-review">
+      <span className="label-small">Ведущий: проверка кона</span>
       {needsTricks && (
         <table className="review">
           <tbody>
             {turn.active.map((p) => {
               const input = draft.inputs[p];
+              const auto = draft.auto?.playerId === p ? draft.auto.tricks : null;
               return (
                 <tr key={p}>
                   <td>{nameOf(p)}</td>
-                  <td className="num">{input?.tricks ?? '—'}</td>
+                  <td className="num">
+                    {input?.tricks ??
+                      (auto !== null ? (
+                        <>
+                          {auto} <AutoBadge />
+                        </>
+                      ) : (
+                        '—'
+                      ))}
+                  </td>
                   <td>{input?.marriages.map((m) => MARRIAGE_SYMBOL[m]).join(' ')}</td>
                   <td>
                     <button className="btn small" onClick={() => setEditing(p)}>
@@ -307,7 +413,13 @@ function HostReview({ ctx }: { ctx: GameCtx }) {
               <tr className={trickSum === CARD_POINTS_TOTAL ? 'good' : 'warn'}>
                 <td>Сумма</td>
                 <td className="num">{trickSum}</td>
-                <td colSpan={2}>из {CARD_POINTS_TOTAL}</td>
+                <td colSpan={2}>
+                  {trickSum > CARD_POINTS_TOTAL
+                    ? `больше ${CARD_POINTS_TOTAL} на ${trickSum - CARD_POINTS_TOTAL}`
+                    : anyEntered && trickSum < CARD_POINTS_TOTAL
+                      ? `осталось ${CARD_POINTS_TOTAL - trickSum}`
+                      : `из ${CARD_POINTS_TOTAL}`}
+                </td>
               </tr>
             )}
           </tbody>
@@ -345,9 +457,9 @@ function HostReview({ ctx }: { ctx: GameCtx }) {
         />
       )}
 
-      {draft.issues.length > 0 && (
+      {shownIssues.length > 0 && (
         <ul className="issues">
-          {draft.issues.map((i, n) => (
+          {shownIssues.map((i, n) => (
             <li key={n} className={i.level}>
               {i.playerId && `${nameOf(i.playerId)}: `}
               {i.message}
@@ -356,7 +468,7 @@ function HostReview({ ctx }: { ctx: GameCtx }) {
         </ul>
       )}
 
-      {draft.preview && (
+      {draft.preview && allEntered && (
         <div className="preview">
           {view.seats.map((p) => {
             const cell = draft.preview!.cells[p.id]!;

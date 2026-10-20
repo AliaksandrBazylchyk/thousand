@@ -112,6 +112,8 @@ export const handInputs = sqliteTable(
     prikupPoints: integer('prikup_points'),
     prikupMarriage: text('prikup_marriage').$type<Suit>(),
     enteredBy: text('entered_by').notNull(),
+    /** Очки взяток подсчитаны автоматически как остаток до 120 (последний невведённый игрок). */
+    auto: integer('auto', { mode: 'boolean' }).notNull().default(false),
     updatedAt: createdAt(),
   },
   (t) => [primaryKey({ columns: [t.handId, t.playerId] })],

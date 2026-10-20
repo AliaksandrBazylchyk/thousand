@@ -12,6 +12,7 @@ import {
 import { api } from '../api';
 import { describeLog, inputText, timeText } from '../editLog';
 import { MARRIAGES, MARRIAGE_SYMBOL, SUITS, dealMarkSymbol, markSymbol } from '../symbols';
+import { AutoBadge, GoldenChip } from './PlayPanel';
 import { Sym } from './Sym';
 import { BidStepper, ErrorText, useRun, type GameCtx } from './ui';
 
@@ -184,7 +185,8 @@ function CellsTable({ ctx, row, hand }: { ctx: GameCtx; row: Row; hand: HandDeta
               </td>
               <td>
                 {inputText(input)}
-                {input && input.enteredBy !== p.id && (
+                {input?.auto && <AutoBadge />}
+                {input && !input.auto && input.enteredBy !== p.id && (
                   <span className="small muted"> (ввёл {nameOf(input.enteredBy)})</span>
                 )}
               </td>
@@ -367,17 +369,13 @@ function HandEditor({
                     {MARRIAGE_SYMBOL[m]}
                   </button>
                 ))}
-                {p === declarer && (
-                  <button
-                    type="button"
-                    className={`chip small golden ${golden ? 'on' : ''}`}
-                    title="Золотая тысяча: 4 короля и 4 дамы"
-                    aria-label="Золотая тысяча"
-                    onClick={() => setGolden(!golden)}
-                  >
-                    ♠
-                  </button>
-                )}
+                <GoldenChip
+                  small
+                  on={golden && p === declarer}
+                  enabled={p === declarer}
+                  declarer={nameOf(declarer)}
+                  onToggle={() => setGolden(!golden)}
+                />
               </div>
             </div>
           ))}

@@ -48,6 +48,8 @@ export interface DraftInput {
   prikupPoints: number | null;
   prikupMarriage: Suit | null;
   enteredBy: PlayerId;
+  /** Очки подсчитаны автоматически как остаток до 120. */
+  auto: boolean;
   updatedAt: number;
 }
 
@@ -62,6 +64,8 @@ export interface DraftHand {
   inputs: Record<PlayerId, DraftInput>;
   /** Кто ещё не ввёл (играющие и раздающий на прикупе вчетвером). */
   waitingFor: PlayerId[];
+  /** Последнему невведённому игроку — остаток до 120; сохранится при подтверждении. */
+  auto: { playerId: PlayerId; tricks: number } | null;
   /** Строка, которая получится после подтверждения. */
   preview: Row | null;
   issues: Issue[];

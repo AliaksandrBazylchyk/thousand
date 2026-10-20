@@ -1,0 +1,1 @@
+ALTER TABLE `hand_inputs` ADD `auto` integer DEFAULT false NOT NULL;

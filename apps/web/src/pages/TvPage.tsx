@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import type { GameView, PlayerId } from '@thousand/core';
+import { Celebration } from '../components/Celebration';
 import { ScoreChart } from '../components/ScoreChart';
 import { ScoreTable } from '../components/ScoreTable';
 import { Sym } from '../components/Sym';
@@ -33,12 +34,14 @@ function TvGame({ gameId }: { gameId: string }) {
   const settings = useSettings();
   const showMarriages = params.has('m') ? params.get('m') === '1' : settings.marriages;
   useWakeLock();
+  const jackCelebration = useNewJackAtBottom(view);
 
   if (error) return <div className="tv tv-message">{error}</div>;
   if (!view) return <div className="tv tv-message">Загрузка…</div>;
 
   return (
     <div className="tv">
+      <Celebration trigger={jackCelebration} text="ЖЕНИМ!" />
       <main className="tv-main">
         <header className="tv-head">
           <span className="tv-room">{view.roomName}</span>
@@ -148,6 +151,32 @@ function Scores({ view }: { view: GameView }) {
       })}
     </div>
   );
+}
+
+/**
+ * Счётчик праздников «ЖЕНИМ!»: растёт, когда в партии появляется новая отметка «валет внизу
+ * при сдвиге». Отметки, которые уже были при открытии таблицы, не празднуются.
+ */
+function useNewJackAtBottom(view: GameView | null): number {
+  const seen = useRef<Set<string> | null>(null);
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (!view) return;
+    const jacks = [
+      ...view.state.rows.flatMap((r) => r.dealMarks),
+      ...(view.state.current?.dealMarks ?? []),
+    ]
+      .filter((d) => d.type === 'jackAtBottom')
+      .map((d) => d.entryId);
+    if (seen.current === null) {
+      seen.current = new Set(jacks);
+      return;
+    }
+    const fresh = jacks.filter((id) => !seen.current!.has(id));
+    fresh.forEach((id) => seen.current!.add(id));
+    if (fresh.length > 0) setCount((n) => n + 1);
+  }, [view]);
+  return count;
 }
 
 /** Не даём телевизору/планшету гаснуть, пока открыта таблица. */

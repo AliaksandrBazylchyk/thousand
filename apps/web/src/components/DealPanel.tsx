@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { MIN_BID, MIN_DARK_BID, MIN_DARK_OVERBID, type DarkStatus } from '@thousand/core';
-import { REDEAL_REASON_LABEL, dealMarkSymbol } from '../symbols';
+import { dealMarkSymbol } from '../symbols';
 import { Sym } from './Sym';
 import { BidStepper, ErrorText, useRun, type GameCtx } from './ui';
 
@@ -20,32 +20,30 @@ export function DealPanel({ ctx }: { ctx: GameCtx }) {
 
   return (
     <section className="card stack">
-      <h2>Кон {current.handNumber} · раздача</h2>
-      <dl className="turn">
-        <dt>Раздаёт</dt>
-        <dd>{nameOf(turn.dealer)}</dd>
-        <dt>Сдвигает</dt>
-        <dd>{nameOf(turn.shifter)}</dd>
-        <dt>На 100</dt>
-        <dd>
-          {nameOf(turn.onHundred)}
-          {view.darkDeclared && <span className="badge dark">тёмная</span>}
-        </dd>
-        {turn.prikupSitter && (
-          <>
-            <dt>На прикупе</dt>
-            <dd>{nameOf(turn.prikupSitter)}</dd>
-          </>
+      <div className="panel-head">
+        <h2>Кон {current.handNumber} · раздача</h2>
+        {current.dealMarks.length > 0 && (
+          <span className="syms" title="События этой раздачи">
+            {current.dealMarks.map((d) => (
+              <Sym key={d.entryId} s={dealMarkSymbol(d)} />
+            ))}
+          </span>
         )}
+      </div>
+      <dl className="turn-strip">
+        <div>
+          <dt>Раздаёт{turn.prikupSitter ? ' · прикуп' : ''}</dt>
+          <dd>{nameOf(turn.dealer)}</dd>
+        </div>
+        <div>
+          <dt>Сдвигает</dt>
+          <dd>{nameOf(turn.shifter)}</dd>
+        </div>
+        <div>
+          <dt>На 100{view.darkDeclared ? ' · тёмная' : ''}</dt>
+          <dd>{nameOf(turn.onHundred)}</dd>
+        </div>
       </dl>
-      {current.dealMarks.length > 0 && (
-        <p className="small">
-          В этой раздаче:{' '}
-          {current.dealMarks.map((d) => (
-            <Sym key={d.entryId} s={dealMarkSymbol(d)} />
-          ))}
-        </p>
-      )}
 
       {anyButtons && (
         <div className="grid-buttons">
@@ -56,14 +54,14 @@ export function DealPanel({ ctx }: { ctx: GameCtx }) {
                 disabled={busy}
                 onClick={() => run({ type: 'dealEvent', event: 'redeal', reason: 'fourNines' })}
               >
-                Пересдача: 4 девятки
+                ↻ 4 девятки
               </button>
               <button
                 className="btn"
                 disabled={busy}
                 onClick={() => run({ type: 'dealEvent', event: 'redeal', reason: 'fourJacks' })}
               >
-                Пересдача: 4 вальта
+                ↻ 4 вальта
               </button>
             </>
           )}
@@ -80,7 +78,7 @@ export function DealPanel({ ctx }: { ctx: GameCtx }) {
                 })
               }
             >
-              Пересдача: {REDEAL_REASON_LABEL.threeNines}
+              ↻ 3 девятки
             </button>
           )}
           {iAmShifter && (
@@ -90,14 +88,14 @@ export function DealPanel({ ctx }: { ctx: GameCtx }) {
                 disabled={busy}
                 onClick={() => run({ type: 'dealEvent', event: 'nineAtBottom' })}
               >
-                Внизу девятка ({current.shiftCount}/3)
+                Внизу 9 · {current.shiftCount}/3
               </button>
               <button
                 className="btn"
                 disabled={busy}
                 onClick={() => run({ type: 'dealEvent', event: 'jackAtBottom' })}
               >
-                Внизу валет ({current.shiftCount}/3)
+                Внизу валет · {current.shiftCount}/3
               </button>
             </>
           )}
@@ -170,8 +168,8 @@ function BiddingForm({ ctx }: { ctx: GameCtx }) {
   const mine = effectiveDeclarer === me;
 
   return (
-    <div className="stack bidding">
-      <h3>{isHost ? 'Итог торгов' : 'Я выиграл торги'}</h3>
+    <div className="stack-sm bidding">
+      <span className="label-small">{isHost ? 'Итог торгов' : 'Я выиграл торги'}</span>
       {darkToggle}
       {isHost && (
         <div className="chips">
@@ -187,17 +185,19 @@ function BiddingForm({ ctx }: { ctx: GameCtx }) {
           ))}
         </div>
       )}
-      <BidStepper value={effectiveBid} min={minBid} onChange={setBid} />
-      <button
-        className="btn primary"
-        disabled={busy}
-        onClick={() =>
-          run({ type: 'startHand', declarerId: effectiveDeclarer, bid: effectiveBid, dark })
-        }
-      >
-        {mine ? 'Я заказал' : `Заказал ${nameOf(effectiveDeclarer)}`}: {effectiveBid}
-        {dark === 'played' ? ' в тёмную' : ''}
-      </button>
+      <div className="bid-row">
+        <BidStepper value={effectiveBid} min={minBid} onChange={setBid} />
+        <button
+          className="btn primary"
+          disabled={busy}
+          onClick={() =>
+            run({ type: 'startHand', declarerId: effectiveDeclarer, bid: effectiveBid, dark })
+          }
+        >
+          {mine ? 'Я заказал' : `Заказал ${nameOf(effectiveDeclarer)}`}: {effectiveBid}
+          {dark === 'played' ? ' ◐' : ''}
+        </button>
+      </div>
       <ErrorText error={error} />
     </div>
   );

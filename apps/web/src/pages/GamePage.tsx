@@ -19,6 +19,7 @@ export function GamePage() {
   const [opened, setOpened] = useState<string | null>(null);
   const settings = useSettings();
   const [showMarriages, setShowMarriages] = useState(settings.marriages);
+  const [tab, setTab] = useState<Tab | null>(null);
 
   const ctx = useMemo<GameCtx | null>(() => {
     if (!view) return null;
@@ -36,80 +37,135 @@ export function GamePage() {
   if (error) return <main className="page error">{error}</main>;
   if (!ctx) return <main className="page muted">Загрузка…</main>;
   const { view: v } = ctx;
+  const active = v.status === 'active';
+  // Завершённую партию открываем сразу на таблице.
+  const current: Tab = tab ?? (active ? 'hand' : 'table');
+  const needsMe = !!ctx.me && !!v.draft?.waitingFor.includes(ctx.me);
 
   return (
-    <main className="page game">
-      <header className="row between">
-        <Link to={`/r/${code}`} className="muted small">
-          ← {v.roomName}
+    <div className="game-shell">
+      <header className="game-top">
+        <Link to={`/r/${code}`} className="game-back" aria-label={`В комнату «${v.roomName}»`}>
+          ←
         </Link>
-        <span className="row small muted">
-          Ведущий: {ctx.nameOf(v.hostId)}
-          <Link to={`/r/${code}/g/${gameId}/tv`} className="small">
-            ТВ
-          </Link>
+        <StatusBar ctx={ctx} />
+        <span className="game-host">
+          {ctx.isHost ? 'вы ведущий' : `ведёт ${ctx.nameOf(v.hostId)}`}
         </span>
       </header>
 
-      <StatusBar ctx={ctx} />
-      {!me && (
-        <p className="card small">
-          Вы смотрите как зритель. <Link to={`/r/${code}`}>Войдите в комнате</Link>, чтобы вводить
-          очки.
-        </p>
-      )}
-
-      {v.status === 'active' && (v.draft ? <PlayPanel ctx={ctx} /> : <DealPanel ctx={ctx} />)}
-      {v.status !== 'active' && <FinishedBanner ctx={ctx} />}
-
-      <section className="stack-sm">
-        <div className="row between">
-          <h2>Таблица</h2>
-          <label className="small row">
-            <input
-              type="checkbox"
-              checked={showMarriages}
-              onChange={(e) => setShowMarriages(e.target.checked)}
-            />
-            марьяжи
-          </label>
-        </div>
-        <ScoreTable view={v} me={ctx.me} showMarriages={showMarriages} onOpen={setOpened} />
-        {v.state.rows.length > 0 && (
-          <p className="row between small muted">
-            <span>Нажмите на строку, чтобы увидеть детали кона.</span>
-            <span className="row">
-              Экспорт:
-              <a href={`/api/games/${v.id}/export?format=csv`} download>
-                CSV
-              </a>
-              <a href={`/api/games/${v.id}/export?format=json`} download>
-                JSON
-              </a>
-            </span>
-          </p>
+      <main className="game-main">
+        {current === 'hand' && (
+          <>
+            {!me && (
+              <p className="card small">
+                Вы смотрите как зритель. <Link to={`/r/${code}`}>Войдите в комнате</Link>, чтобы
+                вводить очки.
+              </p>
+            )}
+            {active && (v.draft ? <PlayPanel ctx={ctx} /> : <DealPanel ctx={ctx} />)}
+            {!active && <FinishedBanner ctx={ctx} />}
+          </>
         )}
-      </section>
-      {v.state.rows.length > 0 && <GameStats ctx={ctx} />}
-      {ctx.isHost && v.status === 'active' && <HostMenu ctx={ctx} />}
-      <EditLog ctx={ctx} />
+
+        {current === 'table' && (
+          <section className="stack-sm">
+            {!active && <FinishedBanner ctx={ctx} />}
+            <div className="row between">
+              <span className="small muted">
+                {ctx.isHost && v.state.rows.length > 0
+                  ? 'Нажмите на строку — детали и правка кона'
+                  : ''}
+              </span>
+              <label className="small row">
+                <input
+                  type="checkbox"
+                  checked={showMarriages}
+                  onChange={(e) => setShowMarriages(e.target.checked)}
+                />
+                марьяжи
+              </label>
+            </div>
+            {/* Детали кона с очками и правкой — только у ведущего. */}
+            <ScoreTable
+              view={v}
+              me={ctx.me}
+              showMarriages={showMarriages}
+              onOpen={ctx.isHost ? setOpened : undefined}
+            />
+          </section>
+        )}
+
+        {current === 'more' && (
+          <div className="stack">
+            {v.state.rows.length > 0 && <GameStats ctx={ctx} />}
+            {ctx.isHost && active && <HostMenu ctx={ctx} />}
+            {/* История правок и меню ведущего — только у ведущего. */}
+            {ctx.isHost && <EditLog ctx={ctx} />}
+            <section className="card stack-sm">
+              <Link to={`/r/${code}/g/${gameId}/tv`}>Таблица для ТВ</Link>
+              {v.state.rows.length > 0 && (
+                <span className="row small">
+                  Экспорт партии:
+                  <a href={`/api/games/${v.id}/export?format=csv`} download>
+                    CSV
+                  </a>
+                  <a href={`/api/games/${v.id}/export?format=json`} download>
+                    JSON
+                  </a>
+                </span>
+              )}
+              <Link to={`/r/${code}`}>Комната «{v.roomName}»</Link>
+            </section>
+          </div>
+        )}
+      </main>
+
+      <nav className="game-tabs" aria-label="Разделы партии">
+        {TABS.map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            className={current === id ? 'on' : ''}
+            aria-current={current === id ? 'page' : undefined}
+            onClick={() => setTab(id)}
+          >
+            {label}
+            {id === 'hand' && needsMe && current !== 'hand' && (
+              <span className="tab-dot" aria-label="ждут ваш ввод" />
+            )}
+          </button>
+        ))}
+      </nav>
+
       {opened && <HandDetails ctx={ctx} entryId={opened} onClose={() => setOpened(null)} />}
-    </main>
+    </div>
   );
 }
 
+type Tab = 'hand' | 'table' | 'more';
+const TABS: [Tab, string][] = [
+  ['hand', 'Кон'],
+  ['table', 'Таблица'],
+  ['more', 'Ещё'],
+];
+
 /** Постоянно видны: свой счёт, болты, бочка и номер попытки (ТЗ 6.1). */
 function StatusBar({ ctx }: { ctx: GameCtx }) {
-  if (!ctx.me) return null;
-  const s = ctx.view.state.players[ctx.me];
-  if (!s) return null;
+  const s = ctx.me ? ctx.view.state.players[ctx.me] : undefined;
+  if (!s) return <span className="status-bar muted">{ctx.view.roomName}</span>;
   return (
     <div className="status-bar">
       <span>
-        Счёт <b>{s.score}</b>
+        <b>{s.score}</b>
       </span>
-      <span>Болты {s.bolts}</span>
-      {s.onBarrel && <span className="barrel">▣ бочка, попытка {s.barrelAttempts + 1}/3</span>}
+      <span title="Болты">• {s.bolts}</span>
+      {s.onBarrel && (
+        <span className="barrel" title="На бочке, попытка">
+          ▣ {s.barrelAttempts + 1}/3
+        </span>
+      )}
+      {s.barrelFalls > 0 && <span title="Падений с бочки">↓ {s.barrelFalls}</span>}
     </div>
   );
 }
