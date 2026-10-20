@@ -1,4 +1,11 @@
-import type { GameDetails, PlayerId, PlayerRef, RoomStatsView, RoomView } from '@thousand/core';
+import type {
+  GameDetails,
+  PlayerId,
+  PlayerRef,
+  RoomListItem,
+  RoomStatsView,
+  RoomView,
+} from '@thousand/core';
 
 async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
   const res = await fetch(url, {
@@ -14,6 +21,7 @@ async function request<T>(method: string, url: string, body?: unknown): Promise<
 export const api = {
   createRoom: (name: string) =>
     request<{ id: string; name: string; code: string }>('POST', '/api/rooms', { name }),
+  listRooms: () => request<RoomListItem[]>('GET', '/api/rooms'),
   getRoom: (code: string) => request<RoomView>('GET', `/api/rooms/${encodeURIComponent(code)}`),
   ensurePlayer: (code: string, name: string) =>
     request<PlayerRef>('POST', `/api/rooms/${encodeURIComponent(code)}/players`, { name }),

@@ -1,18 +1,13 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import type { GameSummary, PlayerId, PlayerRef, RoomView } from '@thousand/core';
 import { api } from '../api';
 import { useMe, useRoom } from '../hooks';
-import { rememberRoom } from '../identity';
 
 export function RoomPage() {
   const { code = '' } = useParams();
   const { room, error } = useRoom(code);
   const [me, setMe] = useMe(code);
-
-  useEffect(() => {
-    if (room) rememberRoom({ code: room.code, name: room.name });
-  }, [room]);
 
   if (error) return <main className="page error">{error}</main>;
   if (!room) return <main className="page muted">Загрузка…</main>;

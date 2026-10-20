@@ -32,6 +32,19 @@ export interface GameSummary {
   scores: Record<PlayerId, number>;
 }
 
+/** Комната в общем списке на главной: видна с любого устройства. */
+export interface RoomListItem {
+  code: string;
+  name: string;
+  createdAt: number;
+  /** Партий всего, без отменённых. */
+  games: number;
+  /** Идущих сейчас партий. */
+  activeGames: number;
+  /** Последняя активность: начало или конец последней партии, иначе создание комнаты. */
+  lastActivity: number;
+}
+
 export interface RoomView {
   id: string;
   name: string;

@@ -3,12 +3,6 @@
 import type { PlayerRef } from '@thousand/core';
 
 const playerKey = (roomCode: string) => `thousand:player:${roomCode}`;
-const ROOMS_KEY = 'thousand:rooms';
-
-export interface RecentRoom {
-  code: string;
-  name: string;
-}
 
 function read<T>(key: string): T | null {
   try {
@@ -31,8 +25,3 @@ function write(key: string, value: unknown) {
 export const getStoredPlayer = (roomCode: string) => read<PlayerRef>(playerKey(roomCode));
 export const setStoredPlayer = (roomCode: string, player: PlayerRef | null) =>
   write(playerKey(roomCode), player);
-
-export const getRecentRooms = () => read<RecentRoom[]>(ROOMS_KEY) ?? [];
-export function rememberRoom(room: RecentRoom) {
-  write(ROOMS_KEY, [room, ...getRecentRooms().filter((r) => r.code !== room.code)].slice(0, 10));
-}

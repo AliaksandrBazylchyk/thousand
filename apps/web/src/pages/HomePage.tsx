@@ -1,7 +1,7 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
+import type { RoomListItem } from '@thousand/core';
 import { api } from '../api';
-import { getRecentRooms } from '../identity';
 import { useInstall } from '../pwa';
 
 export function HomePage() {
@@ -9,8 +9,18 @@ export function HomePage() {
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const recent = getRecentRooms();
+  // Комнаты берутся с сервера, поэтому они видны и с нового устройства.
+  const [rooms, setRooms] = useState<RoomListItem[] | null>(null);
+  const [roomsError, setRoomsError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
   const { available, install } = useInstall();
+
+  useEffect(() => {
+    api
+      .listRooms()
+      .then(setRooms)
+      .catch((e: Error) => setRoomsError(e.message));
+  }, []);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -23,6 +33,8 @@ export function HomePage() {
       setBusy(false);
     }
   }
+
+  const showForm = creating || (rooms !== null && rooms.length === 0);
 
   return (
     <main className="page">
@@ -39,31 +51,51 @@ export function HomePage() {
         </button>
       )}
 
-      <form className="card stack" onSubmit={submit}>
-        <h2>Новая комната</h2>
-        <input
-          className="input"
-          placeholder="Название, например «Дача»"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          maxLength={60}
-          required
-        />
-        <button className="btn primary" disabled={busy || !name.trim()}>
-          Создать комнату
-        </button>
-        {error && <p className="error">{error}</p>}
-      </form>
-
-      {recent.length > 0 && (
-        <section className="card stack">
-          <h2>Мои комнаты</h2>
-          {recent.map((r) => (
-            <Link key={r.code} className="btn" to={`/r/${r.code}`}>
-              {r.name}
+      {roomsError && <p className="error">Не удалось загрузить комнаты: {roomsError}</p>}
+      {rooms === null && !roomsError && <p className="muted">Загрузка комнат…</p>}
+      {rooms && rooms.length > 0 && (
+        <section className="stack-sm">
+          <h2>Комнаты</h2>
+          {rooms.map((r) => (
+            <Link key={r.code} to={`/r/${r.code}`} className="card room-card">
+              <span className="room-card-name">{r.name}</span>
+              <span className="row small muted">
+                {r.activeGames > 0 && (
+                  <span className="badge active">
+                    {r.activeGames === 1 ? 'идёт партия' : `идёт партий: ${r.activeGames}`}
+                  </span>
+                )}
+                <span>партий: {r.games}</span>
+                <span>· {new Date(r.lastActivity).toLocaleDateString('ru')}</span>
+              </span>
             </Link>
           ))}
         </section>
+      )}
+
+      {showForm ? (
+        <form className="card stack" onSubmit={submit}>
+          <h2>Новая комната</h2>
+          <input
+            className="input"
+            placeholder="Название, например «Дача»"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            maxLength={60}
+            autoFocus={creating}
+            required
+          />
+          <button className="btn primary" disabled={busy || !name.trim()}>
+            Создать комнату
+          </button>
+          {error && <p className="error">{error}</p>}
+        </form>
+      ) : (
+        rooms !== null && (
+          <button className="btn" onClick={() => setCreating(true)}>
+            Новая комната
+          </button>
+        )
       )}
     </main>
   );

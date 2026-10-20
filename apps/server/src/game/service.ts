@@ -17,6 +17,7 @@ import {
   type HandEntry,
   type IssueCode,
   type PlayerId,
+  type RoomListItem,
   type RoomStatsView,
   type RoomView,
   type Turn,
@@ -88,6 +89,34 @@ export function createGameService(db: Db, onChange: (gameId: string, roomId: str
     const room = db.select().from(rooms).where(eq(rooms.code, code.toLowerCase())).get();
     if (!room) throw new GameError('Комната не найдена');
     return room;
+  }
+
+  /** Все комнаты для главной страницы: свежая активность сверху. */
+  function listRooms(): RoomListItem[] {
+    const roomRows = db.select().from(rooms).all();
+    const gameRows = db
+      .select({
+        roomId: games.roomId,
+        status: games.status,
+        startedAt: games.startedAt,
+        finishedAt: games.finishedAt,
+      })
+      .from(games)
+      .all();
+    return roomRows
+      .map((room) => {
+        const own = gameRows.filter((g) => g.roomId === room.id && g.status !== 'cancelled');
+        const times = own.flatMap((g) => [g.startedAt.getTime(), g.finishedAt?.getTime() ?? 0]);
+        return {
+          code: room.code,
+          name: room.name,
+          createdAt: room.createdAt.getTime(),
+          games: own.length,
+          activeGames: own.filter((g) => g.status === 'active').length,
+          lastActivity: Math.max(room.createdAt.getTime(), ...times),
+        };
+      })
+      .sort((a, b) => b.lastActivity - a.lastActivity);
   }
 
   function roomView(code: string): RoomView {
@@ -798,7 +827,17 @@ export function createGameService(db: Db, onChange: (gameId: string, roomId: str
     return seq;
   }
 
-  return { createRoom, roomView, roomStats, ensurePlayer, createGame, getView, details, act };
+  return {
+    createRoom,
+    listRooms,
+    roomView,
+    roomStats,
+    ensurePlayer,
+    createGame,
+    getView,
+    details,
+    act,
+  };
 }
 
 export type GameService = ReturnType<typeof createGameService>;

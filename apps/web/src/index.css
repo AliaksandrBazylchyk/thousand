@@ -1233,3 +1233,18 @@ details[open] summary {
     animation: none;
   }
 }
+
+/* ─── Главная: список комнат ──────────────────────────────────────────── */
+
+.room-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.room-card-name {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+.room-card .badge {
+  margin-left: 0;
+}

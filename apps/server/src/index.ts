@@ -59,6 +59,8 @@ const parse = <T>(schema: ZodType<T>, body: unknown): T => schema.parse(body);
 
 app.get('/api/health', async () => ({ ok: true }));
 
+app.get('/api/rooms', async () => service.listRooms());
+
 app.post('/api/rooms', (req, reply) =>
   handle(reply, () => service.createRoom(parse(createRoomSchema, req.body).name)),
 );
