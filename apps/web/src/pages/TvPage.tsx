@@ -136,15 +136,40 @@ function Scores({ view }: { view: GameView }) {
       {view.seats.map((p) => {
         const s = view.state.players[p.id]!;
         return (
-          <div key={p.id} className={`tv-score ${view.winnerId === p.id ? 'win' : ''}`}>
+          <div
+            key={p.id}
+            className={`tv-score ${view.winnerId === p.id ? 'win' : ''} ${s.onBarrel ? 'barrel' : ''}`}
+          >
             <span className="tv-score-name">
               {view.winnerId === p.id && '♔ '}
               {p.name}
             </span>
             <span className="tv-score-value">{s.score}</span>
             <span className="tv-score-meta">
-              {s.bolts > 0 && <span>• {s.bolts}</span>}
-              {s.onBarrel && <span className="tv-barrel">▣ {s.barrelAttempts + 1}/3</span>}
+              {s.bolts > 0 && (
+                <span className="status-pill">
+                  <Sym
+                    s={{
+                      icon: 'bolt',
+                      text: `• ${s.bolts}`,
+                      label: String(s.bolts),
+                      title: 'Болты',
+                    }}
+                  />
+                </span>
+              )}
+              {s.onBarrel && (
+                <span className="status-pill barrel tv-barrel">
+                  <Sym
+                    s={{
+                      icon: 'barrel',
+                      text: `▣ ${s.barrelAttempts + 1}/3`,
+                      label: `${s.barrelAttempts + 1}/3`,
+                      title: 'На бочке, попытка',
+                    }}
+                  />
+                </span>
+              )}
             </span>
           </div>
         );

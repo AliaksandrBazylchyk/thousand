@@ -1,7 +1,7 @@
 // Service worker: быстрый запуск установленного приложения и оболочка без сети.
 // Данные партии всегда идут с сервера (REST и Socket.IO не кешируются).
 
-const CACHE = 'thousand-v1';
+const CACHE = 'thousand-v2';
 const SHELL = ['/', '/manifest.webmanifest', '/favicon.svg', '/icon-192.png', '/icon-512.png'];
 
 self.addEventListener('install', (event) => {

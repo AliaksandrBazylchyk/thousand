@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from 'react';
 
-export type Theme = 'auto' | 'light' | 'dark';
+export type Theme = 'tavern' | 'auto' | 'light' | 'dark';
 export type SymbolStyle = 'icons' | 'text';
 export type SymbolSize = 's' | 'm' | 'l';
 
@@ -15,7 +15,13 @@ export interface Settings {
 }
 
 const KEY = 'thousand:settings';
-const DEFAULTS: Settings = { theme: 'auto', symbols: 'icons', symbolSize: 'm', marriages: false };
+const DEFAULTS: Settings = { theme: 'tavern', symbols: 'icons', symbolSize: 'm', marriages: false };
+const THEME_COLOR: Record<Theme, string> = {
+  tavern: '#0d0a07',
+  auto: '#1f6f50',
+  light: '#1f6f50',
+  dark: '#15140f',
+};
 const SIZE_SCALE: Record<SymbolSize, number> = { s: 0.75, m: 0.85, l: 1.05 };
 
 function load(): Settings {
@@ -34,6 +40,8 @@ function apply(s: Settings) {
   const root = document.documentElement;
   if (s.theme === 'auto') delete root.dataset.theme;
   else root.dataset.theme = s.theme;
+  // Цвет строки состояния браузера на телефоне — под фон темы.
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', THEME_COLOR[s.theme]);
   root.style.setProperty('--sym-scale', String(SIZE_SCALE[s.symbolSize]));
 }
 

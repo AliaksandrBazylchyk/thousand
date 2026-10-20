@@ -1,0 +1,503 @@
+/* ═══ Тема «Таверна»: тёмный стол, золото и бронза, пергамент ═════════════
+   Дизайн — холст «Тысяча — дизайн в стиле Гвинта». Поверх базовых стилей
+   (index.css): токены и оформление — двойные бронзовые рамки, золотые кнопки,
+   счёт шрифтом Cormorant. Включается атрибутом data-theme="tavern". */
+
+:root[data-theme='tavern'] {
+  color-scheme: dark;
+  --bg: #0d0a07;
+  --surface: #15100b;
+  --surface-2: #1f1811;
+  --text: #ece0c4;
+  --muted: #a99878;
+  --border: #3a2d1f;
+  --frame: #6b5332;
+  --frame-light: #8a6a3c;
+  --line: #2a2117;
+  --accent: #d8b46a;
+  --accent-hi: #f1d79a;
+  --accent-text: #1a120a;
+  --chip-on: #2a2015;
+  --penalty: #e06a4f;
+  --barrel: #e5a845;
+  --win: #f1d79a;
+  --good: #8fbf6a;
+  --warn: #e5a845;
+  --radius: 6px;
+  /* Ленты игроков и ряды графика: оттенки дизайна, проверены валидатором на фоне #15100b. */
+  --series-1: #4a8ee0;
+  --series-2: #1f9e73;
+  --series-3: #a978e0;
+  --series-4: #c95a6e;
+  --font-title: 'Cormorant SC', 'Cormorant', Georgia, serif;
+  --font-num: 'Cormorant', Georgia, serif;
+  --panel-ring: inset 0 0 0 3px var(--bg), inset 0 0 0 4px var(--border);
+  font-family: 'Alegreya Sans', system-ui, sans-serif;
+}
+
+:root[data-theme='tavern'] body {
+  background-color: var(--bg);
+  background-image: radial-gradient(ellipse 90% 45% at 50% 0%, #2a1f15 0%, var(--bg) 80%);
+  background-attachment: fixed;
+}
+
+:root[data-theme='tavern'] :is(h1, h2, h3) {
+  font-family: var(--font-title);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+:root[data-theme='tavern'] :is(h1, h2) {
+  color: var(--accent-hi);
+}
+:root[data-theme='tavern'] h1 {
+  font-size: 2rem;
+}
+:root[data-theme='tavern'] h2 {
+  font-size: 1.35rem;
+}
+:root[data-theme='tavern'] h3 {
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+}
+
+:root[data-theme='tavern'] a {
+  color: var(--accent);
+}
+:root[data-theme='tavern'] a:hover {
+  color: var(--accent-hi);
+}
+
+/* Счёт и числа: Cormorant с цифрами в строку. */
+:root[data-theme='tavern']
+  :is(
+    .stepper-value,
+    .cell .total,
+    .review .num,
+    .stats-list dd,
+    .stats-table .num,
+    .tv-score-value,
+    .game-top .status-bar b,
+    .scores b
+  ) {
+  font-family: var(--font-num);
+  font-weight: 700;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+/* Панели: бронзовая рамка, внутри тёмная и тонкая бронзовая линии. */
+:root[data-theme='tavern'] :is(.card, .table-wrap, .tv-legend, .tv-chart) {
+  background: var(--surface);
+  border: 1px solid var(--frame);
+  box-shadow: var(--panel-ring);
+}
+:root[data-theme='tavern'] a.card:hover {
+  border-color: var(--frame-light);
+}
+
+/* Кнопки: плашка в бронзе, главная — золото. */
+:root[data-theme='tavern'] .btn {
+  border-radius: 4px;
+  border-color: var(--frame-light);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 2px #120d09;
+  color: var(--accent-hi);
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: 0.02em;
+}
+:root[data-theme='tavern'] .btn:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+:root[data-theme='tavern'] .btn.primary {
+  background: var(--accent);
+  border-color: var(--accent-hi);
+  box-shadow: inset 0 0 0 2px var(--frame-light);
+  color: var(--accent-text);
+}
+:root[data-theme='tavern'] .btn.primary:hover:not(:disabled) {
+  background: #e2c07a;
+}
+:root[data-theme='tavern'] .btn.danger {
+  background: transparent;
+  box-shadow: none;
+  border-color: var(--penalty);
+  color: var(--penalty);
+}
+:root[data-theme='tavern'] .btn.gold {
+  border-color: var(--accent-hi);
+  color: var(--accent-hi);
+}
+:root[data-theme='tavern'] .btn.on {
+  background: var(--chip-on);
+  border-color: var(--accent-hi);
+  box-shadow: inset 0 0 0 2px var(--frame-light);
+}
+:root[data-theme='tavern'] .btn:disabled {
+  opacity: 1;
+  border-style: dashed;
+  border-color: var(--border);
+  background: #120e0a;
+  box-shadow: none;
+  color: #8a7a60;
+}
+:root[data-theme='tavern'] .btn.small {
+  font-size: 1rem;
+}
+:root[data-theme='tavern'] .game-main .btn {
+  font-size: 1.05rem;
+}
+:root[data-theme='tavern'] .game-main .btn.small {
+  font-size: 0.95rem;
+}
+
+/* Поля ввода: тёмная лунка в бронзе, число — светлым золотом. */
+:root[data-theme='tavern'] .input {
+  border-radius: 4px;
+  border-color: var(--frame-light);
+  background: var(--bg);
+  color: var(--accent-hi);
+}
+:root[data-theme='tavern'] .input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgb(216 180 106 / 0.14);
+}
+:root[data-theme='tavern'] .input::placeholder {
+  color: #7d6f57;
+}
+:root[data-theme='tavern'] select.input {
+  color: var(--text);
+}
+:root[data-theme='tavern'] :is(.input-row .input, .input.big) {
+  font-family: var(--font-num);
+  font-weight: 700;
+  font-size: 1.6rem;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+/* Фишки (игроки, марьяжи, ставки): плашка, выбранная — в золотой рамке. */
+:root[data-theme='tavern'] .chip {
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+:root[data-theme='tavern'] .chip.on {
+  background: var(--chip-on);
+  border-color: var(--accent-hi);
+  box-shadow: inset 0 0 0 2px var(--frame-light);
+  color: var(--accent-hi);
+}
+:root[data-theme='tavern'] .chip.golden {
+  border-color: var(--accent);
+  color: var(--accent-hi);
+}
+:root[data-theme='tavern'] .chip.golden.on {
+  background: var(--accent-hi);
+  color: var(--accent-text);
+}
+
+:root[data-theme='tavern'] .badge {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-weight: 700;
+}
+:root[data-theme='tavern'] .badge.active {
+  background: rgb(143 191 106 / 0.1);
+  border-color: rgb(143 191 106 / 0.55);
+  color: var(--good);
+}
+:root[data-theme='tavern'] .badge.finished {
+  border-color: var(--frame-light);
+  color: var(--accent);
+}
+:root[data-theme='tavern'] .badge.dark {
+  background: var(--chip-on);
+  border-color: var(--frame-light);
+  color: var(--text);
+}
+
+/* Партия на телефоне: шапка — панель с бронзовой линией, вкладки — тёмная полка. */
+:root[data-theme='tavern'] .game-top {
+  background: #17120d;
+  color: var(--text);
+  border-bottom: 1px solid var(--frame);
+  box-shadow:
+    inset 0 -3px 0 var(--bg),
+    inset 0 -4px 0 var(--border);
+}
+:root[data-theme='tavern'] .game-back {
+  color: var(--accent);
+}
+:root[data-theme='tavern'] .game-top .status-bar b {
+  color: var(--accent-hi);
+  font-size: 1.4rem;
+}
+:root[data-theme='tavern'] .status-bar .barrel {
+  color: var(--barrel);
+}
+:root[data-theme='tavern'] .status-pill {
+  border-color: var(--border);
+  color: var(--muted);
+}
+:root[data-theme='tavern'] .status-pill.barrel {
+  border-color: var(--barrel);
+  color: var(--barrel);
+  font-weight: 700;
+}
+:root[data-theme='tavern'] .game-host {
+  color: var(--accent-hi);
+  opacity: 1;
+  font-family: var(--font-title);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+:root[data-theme='tavern'] .status-bar {
+  background: #17120d;
+  color: var(--text);
+}
+:root[data-theme='tavern'] .game-tabs {
+  background: #120e0a;
+  border-top-color: var(--border);
+}
+:root[data-theme='tavern'] .game-tabs button {
+  font-family: var(--font-title);
+  font-size: 1.1rem;
+  letter-spacing: 0.04em;
+}
+:root[data-theme='tavern'] .game-tabs button.on {
+  color: var(--accent-hi);
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+:root[data-theme='tavern'] .turn-strip > div {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+:root[data-theme='tavern'] .turn-strip dd {
+  font-family: var(--font-title);
+  font-size: 1.05rem;
+}
+:root[data-theme='tavern'] .panel-head h2 {
+  font-size: 1.3rem;
+}
+:root[data-theme='tavern'] :is(.bidding, .input-block, .host-review) {
+  border-top-color: var(--line);
+}
+:root[data-theme='tavern'] .input-done {
+  background: #1a140e;
+  border: 1px solid #5a4429;
+  border-radius: 4px;
+}
+:root[data-theme='tavern'] .auto-badge {
+  background: var(--chip-on);
+  color: var(--accent);
+}
+:root[data-theme='tavern'] .card.winner {
+  font-family: var(--font-title);
+  font-size: 1.6rem;
+  color: var(--accent-hi);
+  border-color: var(--accent);
+  background: #241b10;
+  box-shadow:
+    inset 0 0 0 3px #120d09,
+    inset 0 0 0 4px var(--frame-light);
+}
+:root[data-theme='tavern'] .review td {
+  border-bottom-color: var(--line);
+}
+
+/* Таблица счёта. */
+:root[data-theme='tavern'] .score-table th {
+  background: var(--surface);
+  font-family: var(--font-title);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  border-bottom: 1px solid var(--frame);
+}
+:root[data-theme='tavern'] .score-table th.me {
+  color: var(--accent-hi);
+}
+:root[data-theme='tavern'] .score-table td {
+  border-bottom-color: var(--line);
+}
+:root[data-theme='tavern'] .score-table tbody tr:last-child td {
+  background: rgb(216 180 106 / 0.08);
+}
+:root[data-theme='tavern'] .score-table tr.clickable:hover td {
+  background: rgb(216 180 106 / 0.06);
+}
+:root[data-theme='tavern'] .cell .total {
+  font-size: 1.2em;
+  line-height: 1.1;
+}
+
+:root[data-theme='tavern'] .modal-backdrop {
+  background: rgb(0 0 0 / 0.65);
+}
+:root[data-theme='tavern'] details summary {
+  font-family: var(--font-title);
+  font-size: 1.15rem;
+  color: var(--accent-hi);
+}
+:root[data-theme='tavern'] :is(.stats-table th, .stats-table td, .stats-list > div) {
+  border-bottom-color: var(--line);
+}
+:root[data-theme='tavern'] .room-card-name {
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: 1.35rem;
+  color: var(--accent-hi);
+}
+:root[data-theme='tavern'] .chart-tip {
+  border-color: var(--frame);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.5);
+}
+
+/* ─── ТВ ──────────────────────────────────────────────────────────────── */
+
+:root[data-theme='tavern'] .tv {
+  --bg: #0d0a07;
+  --surface: #15100b;
+  --text: #ece0c4;
+  --muted: #a99878;
+  --border: #3a2d1f;
+  --chip-on: #2a2015;
+  --accent: #d8b46a;
+  --penalty: #e06a4f;
+  --barrel: #e5a845;
+  --win: #f1d79a;
+  --good: #8fbf6a;
+  --series-1: #4a8ee0;
+  --series-2: #1f9e73;
+  --series-3: #a978e0;
+  --series-4: #c95a6e;
+  background-color: var(--bg);
+  background-image: radial-gradient(ellipse 70% 60% at 45% 35%, #2a1f15 0%, var(--bg) 75%);
+}
+:root[data-theme='tavern'] .tv-head {
+  align-items: center;
+}
+:root[data-theme='tavern'] .tv-room {
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: 1.5em;
+  letter-spacing: 0.05em;
+  color: var(--accent-hi);
+}
+:root[data-theme='tavern'] .tv-state {
+  align-items: center;
+  padding: 0.35em 1em;
+  border: 1px solid var(--frame);
+  border-radius: 6px;
+  background: #17120d;
+  box-shadow: var(--panel-ring);
+}
+:root[data-theme='tavern'] .tv-bid {
+  color: var(--accent-hi);
+  font-family: var(--font-num);
+  font-size: 1.15em;
+}
+:root[data-theme='tavern'] .tv-dark {
+  background: var(--chip-on);
+  border: 1px solid var(--frame-light);
+}
+
+/* Карты игроков: плашка в рамке, счёт — медальон, сверху лента цвета игрока. */
+:root[data-theme='tavern'] .tv-score {
+  position: relative;
+  align-items: center;
+  gap: 0.7em;
+  padding: 0.55em 0.9em;
+  border: 2px solid var(--frame-light);
+  border-radius: 6px;
+  background: var(--surface-2);
+  box-shadow:
+    inset 0 0 0 3px #120d09,
+    inset 0 0 0 4px #5a4429;
+}
+:root[data-theme='tavern'] .tv-score::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  right: 0.8em;
+  width: 0.9em;
+  height: 1.9em;
+  background: var(--series-1);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%);
+}
+:root[data-theme='tavern'] .tv-score:nth-child(2)::after {
+  background: var(--series-2);
+}
+:root[data-theme='tavern'] .tv-score:nth-child(3)::after {
+  background: var(--series-3);
+}
+:root[data-theme='tavern'] .tv-score:nth-child(4)::after {
+  background: var(--series-4);
+}
+:root[data-theme='tavern'] .tv-score.barrel {
+  border-color: var(--barrel);
+}
+:root[data-theme='tavern'] .tv-score.win {
+  border-color: var(--accent-hi);
+}
+:root[data-theme='tavern'] .tv-score-value {
+  order: -1;
+  margin-left: 0;
+  flex: none;
+  width: 2.5em;
+  height: 2.5em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 3px solid var(--frame-light);
+  background: var(--bg);
+  box-shadow:
+    0 0 0 3px #2a1f15,
+    0 0 0 4px var(--frame-light);
+  font-size: 1.9em;
+  color: var(--accent-hi);
+}
+:root[data-theme='tavern'] .tv-score.barrel .tv-score-value {
+  border-color: var(--barrel);
+}
+:root[data-theme='tavern'] .tv-score-name {
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: 1.5em;
+}
+:root[data-theme='tavern'] .tv-score-meta {
+  margin-left: auto;
+  margin-right: 1.4em;
+  font-size: 1.05em;
+}
+:root[data-theme='tavern'] .tv-legend h2 {
+  font-size: 1.4em;
+}
+:root[data-theme='tavern'] .tv-legend-syms .sym {
+  min-width: 2.2em;
+  justify-content: center;
+  padding: 0.1em 0.45em;
+  border: 1px solid #5a4429;
+  border-radius: 999px;
+  background: var(--bg);
+}
+:root[data-theme='tavern'] .tv-toggle {
+  border-color: var(--frame);
+}
+:root[data-theme='tavern'] .tv-table .score-table th {
+  font-size: 1em;
+  color: var(--muted);
+}
+
+:root[data-theme='tavern'] .celebration-text {
+  font-family: var(--font-title);
+  color: var(--accent-hi);
+  text-shadow:
+    0 0.04em 0 var(--frame-light),
+    0 0.08em 0.3em rgb(0 0 0 / 0.7);
+}

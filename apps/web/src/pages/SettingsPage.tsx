@@ -50,6 +50,7 @@ export function SettingsPage() {
           label="Тема"
           field="theme"
           options={[
+            ['tavern', 'таверна'],
             ['auto', 'как в системе'],
             ['light', 'светлая'],
             ['dark', 'тёмная'],

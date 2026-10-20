@@ -679,6 +679,8 @@ details[open] summary {
 .tv-score-meta {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25em;
   font-size: 0.8em;
   color: var(--muted);
 }
@@ -997,6 +999,23 @@ details[open] summary {
 }
 .game-top .status-bar b {
   font-size: 1.15rem;
+}
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border: 1px solid rgb(255 255 255 / 0.35);
+  border-radius: 999px;
+  font-size: 0.9em;
+}
+.status-pill .sym {
+  font-size: 1em;
+  margin-left: 0;
+  gap: 4px;
+}
+.status-pill .icon {
+  width: 1.2em;
+  height: 1.2em;
 }
 .game-host {
   font-size: 0.75rem;

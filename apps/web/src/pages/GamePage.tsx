@@ -7,6 +7,7 @@ import { PlayPanel } from '../components/PlayPanel';
 import { ScoreChart } from '../components/ScoreChart';
 import { ScoreTable } from '../components/ScoreTable';
 import { GameStatsTable } from '../components/Stats';
+import { Sym } from '../components/Sym';
 import { ErrorText, useRun, type GameCtx } from '../components/ui';
 import { useAct, useGame, useMe } from '../hooks';
 import { useSettings } from '../settings';
@@ -159,13 +160,33 @@ function StatusBar({ ctx }: { ctx: GameCtx }) {
       <span>
         <b>{s.score}</b>
       </span>
-      <span title="Болты">• {s.bolts}</span>
+      <span className="status-pill">
+        <Sym s={{ icon: 'bolt', text: `• ${s.bolts}`, label: String(s.bolts), title: 'Болты' }} />
+      </span>
       {s.onBarrel && (
-        <span className="barrel" title="На бочке, попытка">
-          ▣ {s.barrelAttempts + 1}/3
+        <span className="status-pill barrel">
+          <Sym
+            s={{
+              icon: 'barrel',
+              text: `▣ ${s.barrelAttempts + 1}/3`,
+              label: `${s.barrelAttempts + 1}/3`,
+              title: 'На бочке, попытка',
+            }}
+          />
         </span>
       )}
-      {s.barrelFalls > 0 && <span title="Падений с бочки">↓ {s.barrelFalls}</span>}
+      {s.barrelFalls > 0 && (
+        <span className="status-pill">
+          <Sym
+            s={{
+              icon: 'barrel-fall',
+              text: `↓ ${s.barrelFalls}`,
+              label: String(s.barrelFalls),
+              title: 'Падений с бочки',
+            }}
+          />
+        </span>
+      )}
     </div>
   );
 }
