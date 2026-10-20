@@ -269,18 +269,23 @@ a {
   gap: 8px;
 }
 
+/* Ставка: −20 −5 [значение] +5 +20 — кнопки делят ширину поровну. */
 .stepper {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 6px;
+  max-width: 420px;
 }
 .stepper .btn {
-  min-width: 64px;
+  flex: 1;
+  min-width: 0;
+  padding-left: 4px;
+  padding-right: 4px;
 }
 .stepper-value {
   font-size: 2rem;
   font-weight: 700;
-  min-width: 80px;
+  min-width: 72px;
   text-align: center;
 }
 
@@ -1120,24 +1125,23 @@ details[open] summary {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Итог торгов: ставка на всю ширину, под ней «Я заказал». */
 .bid-row {
   display: flex;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 6px;
   align-items: center;
 }
 .bid-row .stepper {
-  gap: 4px;
-}
-.bid-row .stepper .btn {
-  min-width: 46px;
-  padding: 8px 4px;
+  flex: 1 1 100%;
+  max-width: none;
 }
 .bid-row .stepper-value {
-  font-size: 1.5rem;
-  min-width: 52px;
+  font-size: 1.6rem;
+  min-width: 64px;
 }
 .bid-row > .btn {
-  flex: 1;
+  flex: 1 1 100%;
 }
 .input-row {
   display: flex;

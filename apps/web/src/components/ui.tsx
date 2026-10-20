@@ -41,20 +41,29 @@ export function BidStepper({
   min: number;
   onChange: (bid: number) => void;
 }) {
+  // Вниз — не ниже минимума: «−20» у самого минимума опускает ровно до него.
+  const down = (step: number) => (
+    <button
+      type="button"
+      className="btn"
+      disabled={value <= min}
+      onClick={() => onChange(Math.max(min, value - step))}
+    >
+      −{step}
+    </button>
+  );
+  const up = (step: number) => (
+    <button type="button" className="btn" onClick={() => onChange(value + step)}>
+      +{step}
+    </button>
+  );
   return (
     <div className="stepper">
-      <button
-        type="button"
-        className="btn"
-        disabled={value - 5 < min}
-        onClick={() => onChange(value - 5)}
-      >
-        −5
-      </button>
+      {down(20)}
+      {down(5)}
       <span className="stepper-value">{value}</span>
-      <button type="button" className="btn" onClick={() => onChange(value + 5)}>
-        +5
-      </button>
+      {up(5)}
+      {up(20)}
     </div>
   );
 }
