@@ -35,7 +35,7 @@ export function markText(m: Mark): string {
     case 'barrel':
       return m.counted ? `▣${m.attempt}` : '▣';
     case 'barrelFall':
-      return '↓';
+      return `↓${m.count}`;
     case 'bulldozer':
       return '⌀';
     case 'dealPenalty':
@@ -52,6 +52,8 @@ export function dealMarkText(d: DealMark): string {
     case 'misdeal':
       return '✕';
     case 'redeal':
-      return d.reason === 'fourJacks' ? '↻В' : d.reason === 'threeNines' ? '↻3×9' : '↻9';
+      return { fourNines: '↻9', fourJacks: '↻В', threeNines: '↻3×9', badPrikup: '↻П' }[
+        d.reason ?? 'fourNines'
+      ];
   }
 }

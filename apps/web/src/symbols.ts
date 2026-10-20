@@ -76,7 +76,13 @@ export function markSymbol(m: Mark): Symbol | null {
         ? sym('barrel', `${m.attempt}`, '▣', 'barrel', `На бочке, кон ${m.attempt}`)
         : sym('barrel', undefined, '▣', 'barrel', 'На бочке, кон на прикупе не считается');
     case 'barrelFall':
-      return sym('barrel-fall', undefined, '↓', 'penalty', FALL_TITLE[m.reason]);
+      return sym(
+        'barrel-fall',
+        `${m.count}`,
+        '↓',
+        'penalty',
+        `${FALL_TITLE[m.reason]} (падение №${m.count} в партии)`,
+      );
     case 'bulldozer':
       return sym('bulldozer', undefined, '⌀', 'penalty', `Бульдозер: ${m.from} → 0`);
     case 'dealPenalty':
@@ -127,7 +133,9 @@ export function dealMarkSymbol(d: DealMark): Symbol {
     case 'misdeal':
       return sym('misdeal', undefined, '✕', 'penalty', 'Неправильная раздача');
     case 'redeal': {
-      const label = d.reason === 'fourJacks' ? 'В' : d.reason === 'threeNines' ? '3×9' : '9';
+      const label = { fourNines: '9', fourJacks: 'В', threeNines: '3×9', badPrikup: 'П' }[
+        d.reason ?? 'fourNines'
+      ];
       const reason = d.reason ? REDEAL_REASON_LABEL[d.reason] : 'причина не указана';
       return sym('redeal', label, '↻', 'muted', `Пересдача: ${reason} (${d.count}-я подряд)`);
     }
@@ -154,6 +162,7 @@ export const REDEAL_REASON_LABEL = {
   fourNines: '4 девятки',
   fourJacks: '4 вальта',
   threeNines: '3 девятки у игрока на 100',
+  badPrikup: 'неигровой прикуп',
 } as const;
 
 /** Легенда справа от таблицы на ТВ (ТЗ 7.2). */
@@ -170,15 +179,19 @@ export const LEGEND: { symbols: Symbol[]; meaning: string }[] = [
     meaning: 'Болт, третий болт',
   },
   { symbols: [sym('barrel', '1', '▣', 'barrel', '')], meaning: 'На бочке, номер кона' },
-  { symbols: [sym('barrel-fall', undefined, '↓', 'penalty', '')], meaning: 'Падение с бочки' },
+  {
+    symbols: [sym('barrel-fall', '1', '↓', 'penalty', '')],
+    meaning: 'Падение с бочки, номер падения',
+  },
   { symbols: [sym('bulldozer', undefined, '⌀', 'penalty', '')], meaning: 'Бульдозер' },
   {
     symbols: [
       sym('redeal', '9', '↻', 'muted', ''),
       sym('redeal', 'В', '↻', 'muted', ''),
       sym('redeal', '3×9', '↻', 'muted', ''),
+      sym('redeal', 'П', '↻', 'muted', ''),
     ],
-    meaning: 'Пересдача: 4 девятки, 4 вальта, 3 девятки',
+    meaning: 'Пересдача: 4 девятки, 4 вальта, 3 девятки, неигровой прикуп',
   },
   {
     symbols: [sym('nine-bottom', '9', '✂', 'muted', ''), sym('nine-bottom', 'В', '✂', 'muted', '')],

@@ -338,15 +338,19 @@ export function createGameService(db: Db, onChange: (gameId: string, roomId: str
     db.transaction(() => {
       switch (action.type) {
         case 'dealEvent': {
+          // Права совпадают с кнопками на экране: каждое событие отмечает тот, кому оно доступно.
           if (action.event === 'misdeal') requireHost();
           const atBottom = action.event === 'nineAtBottom' || action.event === 'jackAtBottom';
-          if (atBottom && actorId !== turn.shifter && !isHost) {
+          if (atBottom && actorId !== turn.shifter) {
             throw new GameError('Девятку или валета внизу отмечает сдвигающий');
           }
           if (action.event === 'redeal') {
             if (!action.reason) throw new GameError('Укажите причину пересдачи');
-            if (action.reason === 'threeNines' && actorId !== turn.onHundred && !isHost) {
+            if (action.reason === 'threeNines' && actorId !== turn.onHundred) {
               throw new GameError('Пересдачу при 3 девятках объявляет игрок на 100');
+            }
+            if (action.reason !== 'threeNines' && !turn.active.includes(actorId)) {
+              throw new GameError('Пересдачу объявляет игрок с картами на руках');
             }
           }
           if (g.draft) {
@@ -371,9 +375,34 @@ export function createGameService(db: Db, onChange: (gameId: string, roomId: str
           break;
         }
 
+        case 'badPrikup': {
+          // Неигровой прикуп (4 очка или меньше, на честном слове): кон отменяется,
+          // пересдача тем же раздающим, входит в счётчик пересдач (R9).
+          const draft = requireDraft(g);
+          if (actorId !== draft.declarerId && !isHost) {
+            throw new GameError('Неигровой прикуп объявляет заказавший');
+          }
+          db.delete(hands).where(eq(hands.id, draft.id)).run();
+          log('cancelHand', handSnapshot(draft, g.draftInputs), null, draft.id);
+          const event = {
+            id: newId(),
+            gameId,
+            seq: nextSeq(g.game),
+            dealerId: turn.dealer,
+            type: 'redeal' as const,
+            reason: 'badPrikup' as const,
+            playerId: draft.declarerId,
+            createdBy: actorId,
+          };
+          db.insert(dealEvents).values(event).run();
+          db.update(games).set({ darkDeclared: false }).where(eq(games.id, gameId)).run();
+          log('dealEvent', null, event);
+          break;
+        }
+
         case 'declareDark': {
           if (g.draft) throw new GameError('Торги уже закончены');
-          if (actorId !== turn.onHundred && !isHost) {
+          if (actorId !== turn.onHundred) {
             throw new GameError('Тёмную объявляет игрок на 100');
           }
           if (action.value && g.state.players[turn.onHundred]?.onBarrel) {
@@ -385,6 +414,9 @@ export function createGameService(db: Db, onChange: (gameId: string, roomId: str
 
         case 'startHand': {
           if (g.draft) throw new GameError('Кон уже начат');
+          if (actorId !== action.declarerId && !isHost) {
+            throw new GameError('Итог торгов за другого игрока фиксирует только ведущий');
+          }
           const hand = {
             id: newId(),
             gameId,

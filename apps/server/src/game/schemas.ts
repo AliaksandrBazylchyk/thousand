@@ -27,6 +27,7 @@ export const gameActionSchema = z.discriminatedUnion('type', [
     goldenThousand: z.boolean().optional(),
   }),
   z.object({ type: z.literal('cancelHand') }),
+  z.object({ type: z.literal('badPrikup') }),
   z.object({
     type: z.literal('submitInput'),
     playerId: id,

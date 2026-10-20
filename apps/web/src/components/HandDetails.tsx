@@ -267,7 +267,8 @@ function HandEditor({
     sitterInput?.prikupMarriage ?? null,
   );
 
-  const needTricks = !rospis && !golden;
+  // Золотая пика — в строке заказавшего, поэтому строки ввода видны и при золотой тысяче.
+  const needTricks = !rospis;
   const update = (p: PlayerId, patch: Partial<DraftRow>) =>
     setInputs((all) => ({ ...all, [p]: { ...all[p]!, ...patch } }));
   const sum = turn.active.reduce((s, p) => s + (Number(inputs[p]?.tricks) || 0), 0);
@@ -333,13 +334,6 @@ function HandEditor({
           >
             роспись
           </button>
-          <button
-            type="button"
-            className={`chip ${golden ? 'on' : ''}`}
-            onClick={() => setGolden(!golden)}
-          >
-            золотая тысяча
-          </button>
         </div>
       </div>
 
@@ -373,6 +367,17 @@ function HandEditor({
                     {MARRIAGE_SYMBOL[m]}
                   </button>
                 ))}
+                {p === declarer && (
+                  <button
+                    type="button"
+                    className={`chip small golden ${golden ? 'on' : ''}`}
+                    title="Золотая тысяча: 4 короля и 4 дамы"
+                    aria-label="Золотая тысяча"
+                    onClick={() => setGolden(!golden)}
+                  >
+                    ♠
+                  </button>
+                )}
               </div>
             </div>
           ))}

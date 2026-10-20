@@ -44,7 +44,8 @@ export interface HandEntry {
 
 /** Девятка или валет внизу при сдвиге, пересдача, неправильная раздача. */
 export type DealEventType = 'nineAtBottom' | 'jackAtBottom' | 'redeal' | 'misdeal';
-export type RedealReason = 'fourNines' | 'fourJacks' | 'threeNines';
+/** badPrikup — неигровой прикуп (4 очка или меньше), объявляет заказавший после торгов (R9). */
+export type RedealReason = 'fourNines' | 'fourJacks' | 'threeNines' | 'badPrikup';
 
 export interface DealEventEntry {
   kind: 'dealEvent';
@@ -96,7 +97,8 @@ export type Mark =
   | { type: 'barrelSit' }
   /** На бочке; attempt — номер кона на бочке, counted=false — кон на прикупе вчетвером. */
   | { type: 'barrel'; attempt: number; counted: boolean }
-  | { type: 'barrelFall'; reason: BarrelFallReason; by?: PlayerId[] }
+  /** count — какое по счёту падение с бочки у игрока в этой партии. */
+  | { type: 'barrelFall'; reason: BarrelFallReason; count: number; by?: PlayerId[] }
   | { type: 'bulldozer'; from: number }
   | { type: 'dealPenalty'; kind: DealPenaltyKind };
 
@@ -180,6 +182,8 @@ export interface PlayerStatus {
   onBarrel: boolean;
   /** Израсходовано попыток на бочке (0–2, на третьей неудаче — падение). */
   barrelAttempts: number;
+  /** Сколько раз за партию падал с бочки. */
+  barrelFalls: number;
 }
 
 export interface CurrentDeal {

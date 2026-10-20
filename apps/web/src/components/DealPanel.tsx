@@ -10,8 +10,13 @@ export function DealPanel({ ctx }: { ctx: GameCtx }) {
   const { run, busy, error } = useRun(ctx.act);
   const current = view.state.current!;
   const { turn } = current;
+  // Каждый видит только свои кнопки: пересдачу — у кого карты, 3 девятки и тёмную — игрок на 100,
+  // девятку и валета внизу — сдвигающий, неправильную раздачу — ведущий.
+  const iHaveCards = me !== null && turn.active.includes(me);
   const iAmOnHundred = me === turn.onHundred;
-  const onHundredOnBarrel = view.state.players[turn.onHundred]?.onBarrel ?? false;
+  const iAmShifter = me === turn.shifter;
+  const canDark = iAmOnHundred && !(view.state.players[turn.onHundred]?.onBarrel ?? false);
+  const anyButtons = iHaveCards || iAmShifter || canDark || isHost;
 
   return (
     <section className="card stack">
@@ -42,23 +47,27 @@ export function DealPanel({ ctx }: { ctx: GameCtx }) {
         </p>
       )}
 
-      {isSeated && (
+      {anyButtons && (
         <div className="grid-buttons">
-          <button
-            className="btn"
-            disabled={busy}
-            onClick={() => run({ type: 'dealEvent', event: 'redeal', reason: 'fourNines' })}
-          >
-            Пересдача: 4 девятки
-          </button>
-          <button
-            className="btn"
-            disabled={busy}
-            onClick={() => run({ type: 'dealEvent', event: 'redeal', reason: 'fourJacks' })}
-          >
-            Пересдача: 4 вальта
-          </button>
-          {(iAmOnHundred || isHost) && (
+          {iHaveCards && (
+            <>
+              <button
+                className="btn"
+                disabled={busy}
+                onClick={() => run({ type: 'dealEvent', event: 'redeal', reason: 'fourNines' })}
+              >
+                Пересдача: 4 девятки
+              </button>
+              <button
+                className="btn"
+                disabled={busy}
+                onClick={() => run({ type: 'dealEvent', event: 'redeal', reason: 'fourJacks' })}
+              >
+                Пересдача: 4 вальта
+              </button>
+            </>
+          )}
+          {iAmOnHundred && (
             <button
               className="btn"
               disabled={busy}
@@ -74,7 +83,7 @@ export function DealPanel({ ctx }: { ctx: GameCtx }) {
               Пересдача: {REDEAL_REASON_LABEL.threeNines}
             </button>
           )}
-          {(me === turn.shifter || isHost) && (
+          {iAmShifter && (
             <>
               <button
                 className="btn"
@@ -92,7 +101,7 @@ export function DealPanel({ ctx }: { ctx: GameCtx }) {
               </button>
             </>
           )}
-          {(iAmOnHundred || isHost) && !onHundredOnBarrel && (
+          {canDark && (
             <button
               className={`btn ${view.darkDeclared ? 'on' : ''}`}
               disabled={busy}
@@ -125,11 +134,11 @@ export function DealPanel({ ctx }: { ctx: GameCtx }) {
 }
 
 function BiddingForm({ ctx }: { ctx: GameCtx }) {
-  const { view, nameOf } = ctx;
+  const { view, nameOf, me, isHost } = ctx;
   const { turn } = view.state.current!;
   const { run, busy, error } = useRun(ctx.act);
   const [overbid, setOverbid] = useState(false);
-  const [declarer, setDeclarer] = useState(turn.onHundred);
+  const [declarer, setDeclarer] = useState(isHost ? turn.onHundred : (me ?? turn.onHundred));
   const [bid, setBid] = useState(MIN_BID);
 
   const dark: DarkStatus = view.darkDeclared ? (overbid ? 'overbid' : 'played') : 'none';
@@ -141,29 +150,43 @@ function BiddingForm({ ctx }: { ctx: GameCtx }) {
       : dark === 'overbid'
         ? turn.active.filter((p) => p !== turn.onHundred)
         : turn.active;
-  const effectiveDeclarer = candidates.includes(declarer) ? declarer : candidates[0]!;
+  // Ведущий фиксирует итог торгов за любого, игрок — только свой заказ.
+  const options = isHost ? candidates : candidates.filter((p) => p === me);
+  const darkToggle = view.darkDeclared && (isHost || me !== turn.onHundred) && (
+    <label className="row small">
+      <input type="checkbox" checked={overbid} onChange={(e) => setOverbid(e.target.checked)} />
+      Тёмную перебили ставкой от {MIN_DARK_OVERBID}
+    </label>
+  );
+  if (options.length === 0) {
+    return view.darkDeclared ? (
+      <div className="stack-sm bidding">
+        {darkToggle}
+        {!overbid && <p className="small muted">Тёмная: заказывает {nameOf(turn.onHundred)}</p>}
+      </div>
+    ) : null;
+  }
+  const effectiveDeclarer = options.includes(declarer) ? declarer : options[0]!;
+  const mine = effectiveDeclarer === me;
 
   return (
     <div className="stack bidding">
-      <h3>Итог торгов</h3>
-      {view.darkDeclared && (
-        <label className="row small">
-          <input type="checkbox" checked={overbid} onChange={(e) => setOverbid(e.target.checked)} />
-          Тёмную перебили ставкой от {MIN_DARK_OVERBID}
-        </label>
+      <h3>{isHost ? 'Итог торгов' : 'Я выиграл торги'}</h3>
+      {darkToggle}
+      {isHost && (
+        <div className="chips">
+          {options.map((p) => (
+            <button
+              key={p}
+              type="button"
+              className={`chip ${p === effectiveDeclarer ? 'on' : ''}`}
+              onClick={() => setDeclarer(p)}
+            >
+              {nameOf(p)}
+            </button>
+          ))}
+        </div>
       )}
-      <div className="chips">
-        {candidates.map((p) => (
-          <button
-            key={p}
-            type="button"
-            className={`chip ${p === effectiveDeclarer ? 'on' : ''}`}
-            onClick={() => setDeclarer(p)}
-          >
-            {nameOf(p)}
-          </button>
-        ))}
-      </div>
       <BidStepper value={effectiveBid} min={minBid} onChange={setBid} />
       <button
         className="btn primary"
@@ -172,7 +195,7 @@ function BiddingForm({ ctx }: { ctx: GameCtx }) {
           run({ type: 'startHand', declarerId: effectiveDeclarer, bid: effectiveBid, dark })
         }
       >
-        Заказал {nameOf(effectiveDeclarer)}: {effectiveBid}
+        {mine ? 'Я заказал' : `Заказал ${nameOf(effectiveDeclarer)}`}: {effectiveBid}
         {dark === 'played' ? ' в тёмную' : ''}
       </button>
       <ErrorText error={error} />

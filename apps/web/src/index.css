@@ -942,3 +942,19 @@ details[open] summary {
 .btn.back {
   align-self: flex-start;
 }
+
+/* Золотая тысяча: маленькая золотая пика рядом с марьяжами (у заказавшего). */
+.chip.golden {
+  color: var(--win);
+  border-color: var(--win);
+  font-weight: 700;
+}
+.chip.golden.on {
+  background: var(--win);
+  color: #1d1b16;
+}
+.gold-text {
+  color: var(--win);
+  font-weight: 600;
+  margin: 0;
+}

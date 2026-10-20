@@ -44,7 +44,10 @@ export function replay(setup: GameSetup, entries: readonly Entry[]): GameState {
   const n = seats.length;
 
   const players: Record<PlayerId, PlayerStatus> = Object.fromEntries(
-    seats.map((p) => [p, { score: 0, bolts: 0, onBarrel: false, barrelAttempts: 0 }]),
+    seats.map((p) => [
+      p,
+      { score: 0, bolts: 0, onBarrel: false, barrelAttempts: 0, barrelFalls: 0 },
+    ]),
   );
   const status = (p: PlayerId) => players[p]!;
 
@@ -320,7 +323,8 @@ export function replay(setup: GameSetup, entries: readonly Entry[]): GameState {
     s.score = score;
     s.onBarrel = false;
     s.barrelAttempts = 0;
-    marks[p]!.push({ type: 'barrelFall', reason, ...(by ? { by } : {}) });
+    s.barrelFalls++;
+    marks[p]!.push({ type: 'barrelFall', reason, count: s.barrelFalls, ...(by ? { by } : {}) });
   }
 
   /** Расходует попытку на бочке; вчетвером кон на прикупе не считается. */

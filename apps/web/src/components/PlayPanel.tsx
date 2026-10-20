@@ -19,7 +19,8 @@ export function PlayPanel({ ctx }: { ctx: GameCtx }) {
   const { turn, handNumber } = view.state.current!;
   const iAmDeclarer = me === draft.declarerId;
   const iPlay = me !== null && turn.active.includes(me);
-  const needsTricks = !draft.rospis && !draft.goldenThousand;
+  // Золотую тысячу отмечает заказавший в своём вводе, поэтому его форма видна и после отметки.
+  const showMyTricks = iPlay && !draft.rospis && (iAmDeclarer || !draft.goldenThousand);
 
   return (
     <section className="card stack">
@@ -34,11 +35,11 @@ export function PlayPanel({ ctx }: { ctx: GameCtx }) {
         {draft.goldenThousand && ' · золотая тысяча'}
       </p>
 
-      {(iAmDeclarer || isHost) && !draft.goldenThousand && <DeclarerControls ctx={ctx} />}
+      {iAmDeclarer && !draft.goldenThousand && <DeclarerControls ctx={ctx} />}
 
-      {iPlay && needsTricks && (
+      {showMyTricks && (
         <TricksEditor
-          key={`${me}-${draft.inputs[me!]?.updatedAt ?? 0}`}
+          key={`${me}-${draft.inputs[me!]?.updatedAt ?? 0}-${draft.goldenThousand}`}
           ctx={ctx}
           playerId={me!}
           input={draft.inputs[me!]}
@@ -88,16 +89,18 @@ function DeclarerControls({ ctx }: { ctx: GameCtx }) {
           {draft.rospis ? 'Отменить роспись' : 'Расписать'}
         </button>
         <button
-          className="btn gold"
+          className="btn"
           disabled={busy}
           onClick={() =>
             run(
-              { type: 'updateHand', goldenThousand: true },
-              'Золотая тысяча: 4 короля и 4 дамы. Это победа в партии. Отметить?',
+              { type: 'badPrikup' },
+              `Неигровой прикуп: в нём 4 очка или меньше. Кон отменяется, ${ctx.nameOf(
+                ctx.view.state.current!.turn.dealer,
+              )} раздаёт заново (это пересдача). Продолжить?`,
             )
           }
         >
-          Золотая тысяча
+          Прикуп неигровой (≤4)
         </button>
       </div>
       <ErrorText error={error} />
@@ -119,16 +122,33 @@ function TricksEditor({
   onDone?: () => void;
 }) {
   const { run, busy, error } = useRun(ctx.act);
+  const draft = ctx.view.draft!;
+  // Золотая тысяча бывает только у заказавшего (2.2): золотая пика есть только в его вводе.
+  const canGolden = playerId === draft.declarerId;
+  const [golden, setGolden] = useState(draft.goldenThousand);
   const [tricks, setTricks] = useState(input?.tricks?.toString() ?? '');
   const [marriages, setMarriages] = useState<Marriage[]>(input?.marriages ?? []);
   const value = Number(tricks);
-  const valid = tricks !== '' && Number.isInteger(value) && value >= 0 && value <= 120;
+  const tricksValid = tricks !== '' && Number.isInteger(value) && value >= 0 && value <= 120;
+  const valid = tricksValid || (golden && tricks === '');
   const toggle = (m: Marriage) =>
     setMarriages((list) => (list.includes(m) ? list.filter((x) => x !== m) : [...list, m]));
 
   async function save() {
-    const ok = await run({ type: 'submitInput', playerId, tricks: value, marriages });
-    if (ok) onDone?.();
+    if (canGolden && golden !== draft.goldenThousand) {
+      const ok = await run(
+        { type: 'updateHand', goldenThousand: golden },
+        golden
+          ? 'Золотая тысяча: 4 короля и 4 дамы после прикупа. Это победа в партии. Отметить?'
+          : undefined,
+      );
+      if (!ok) return;
+    }
+    if (tricksValid) {
+      const ok = await run({ type: 'submitInput', playerId, tricks: value, marriages });
+      if (!ok) return;
+    }
+    onDone?.();
   }
 
   return (
@@ -153,9 +173,21 @@ function TricksEditor({
             {MARRIAGE_SYMBOL[m]}
           </button>
         ))}
+        {canGolden && (
+          <button
+            type="button"
+            className={`chip golden ${golden ? 'on' : ''}`}
+            title="Золотая тысяча: 4 короля и 4 дамы"
+            aria-label="Золотая тысяча"
+            onClick={() => setGolden(!golden)}
+          >
+            ♠
+          </button>
+        )}
       </div>
+      {golden && <p className="small gold-text">Золотая тысяча — победа в партии</p>}
       <button className="btn primary" disabled={busy || !valid} onClick={save}>
-        {input?.tricks != null ? 'Сохранить' : 'Готово'}
+        {input?.tricks != null || draft.goldenThousand ? 'Сохранить' : 'Готово'}
       </button>
       {input?.tricks != null && (
         <p className="small muted">
@@ -242,7 +274,7 @@ function HostReview({ ctx }: { ctx: GameCtx }) {
   const { turn } = view.state.current!;
   const { run, busy, error } = useRun(ctx.act);
   const [editing, setEditing] = useState<PlayerId | null>(null);
-  const needsTricks = !draft.rospis && !draft.goldenThousand;
+  const needsTricks = !draft.rospis;
   const trickSum = turn.active.reduce((sum, p) => sum + (draft.inputs[p]?.tricks ?? 0), 0);
   const hasErrors = draft.issues.some((i) => i.level === 'error');
 
@@ -267,11 +299,17 @@ function HostReview({ ctx }: { ctx: GameCtx }) {
                 </tr>
               );
             })}
-            <tr className={trickSum === CARD_POINTS_TOTAL ? 'good' : 'warn'}>
-              <td>Сумма</td>
-              <td className="num">{trickSum}</td>
-              <td colSpan={2}>из {CARD_POINTS_TOTAL}</td>
-            </tr>
+            {draft.goldenThousand ? (
+              <tr className="good">
+                <td colSpan={4}>Золотая тысяча у {nameOf(draft.declarerId)}: очки не нужны</td>
+              </tr>
+            ) : (
+              <tr className={trickSum === CARD_POINTS_TOTAL ? 'good' : 'warn'}>
+                <td>Сумма</td>
+                <td className="num">{trickSum}</td>
+                <td colSpan={2}>из {CARD_POINTS_TOTAL}</td>
+              </tr>
+            )}
           </tbody>
         </table>
       )}

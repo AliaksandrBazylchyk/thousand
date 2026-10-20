@@ -117,7 +117,7 @@ function emptyStats(playerId: PlayerId): PlayerStats {
     penalties: {
       bolts: 0,
       boltPenalties: 0,
-      redeals: { fourNines: 0, fourJacks: 0, threeNines: 0 },
+      redeals: { fourNines: 0, fourJacks: 0, threeNines: 0, badPrikup: 0 },
       redealPenalties: 0,
       ninePenalties: 0,
       misdeals: 0,
@@ -267,12 +267,12 @@ export function computeStats(games: readonly StatsGame[]): StatsResult {
               s.marriages.bySuit[m.marriage]++;
               s.marriages.points += MARRIAGE_POINTS[m.marriage];
               break;
+            // Посадки и падения считаются так же, как в таблице: одновременная посадка (−120 обоим)
+            // — тоже посадка и падение.
             case 'barrelSit':
-              if (!marks.some((x) => x.type === 'barrelFall' && x.reason === 'collision'))
-                s.barrel.sits++;
+              s.barrel.sits++;
               break;
             case 'barrelFall':
-              if (m.reason === 'collision') break;
               s.barrel.falls++;
               if (m.reason === 'knocked') {
                 for (const by of m.by ?? []) {

@@ -98,6 +98,8 @@ export type GameAction =
       goldenThousand?: boolean;
     }
   | { type: 'cancelHand' }
+  /** Неигровой прикуп: отмена кона и пересдача тем же раздающим (R9). */
+  | { type: 'badPrikup' }
   | {
       type: 'submitInput';
       playerId: PlayerId;
