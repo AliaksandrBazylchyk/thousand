@@ -112,15 +112,18 @@ sudo certbot --nginx -d 203-0-113-10.sslip.io
 
 ## 7. Обновление
 
+Скрипт [deploy/redeploy.sh](../deploy/redeploy.sh) забирает свежую версию из git, собирает её в отдельной папке `/opt/thousand.new`, меняет местами с работающей, перезапускает сервис и проверяет `/api/health`. Ошибка сборки не трогает работающий сервер; если новая версия не ответила — автоматический откат. Предыдущая версия остаётся в `/opt/thousand.prev`.
+
 ```bash
-cd /opt/thousand
-sudo -u thousand git pull
-sudo -u thousand npm ci
-sudo -u thousand npm run build
-sudo systemctl restart thousand
+sudo cp /opt/thousand/deploy/redeploy.sh /usr/local/bin/thousand-redeploy
+sudo thousand-redeploy             # обновить до свежего коммита ветки main
+sudo thousand-redeploy --force     # пересобрать, даже если коммит тот же
+sudo thousand-redeploy --rollback  # вернуть предыдущую версию
 ```
 
-Клиенты переподключатся сами и получат полный снимок партии.
+Скрипт же подходит и для первой установки кода вместо шага 2: он сам создаст `/opt/thousand`. Ветку и репозиторий можно сменить переменными: `sudo BRANCH=dev thousand-redeploy`. Клиенты переподключатся сами и получат полный снимок партии.
+
+Откат возвращает код, но не базу: если новая версия успела применить миграцию, старая работает с уже обновлённой схемой.
 
 ## Переменные окружения
 
