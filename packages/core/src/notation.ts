@@ -25,7 +25,7 @@ export function markText(m: Mark): string {
     case 'winner':
       return '♔';
     case 'bolt':
-      return m.penalty ? '•−120' : '•';
+      return m.penalty ? `•${m.count} −120` : `•${m.count}`;
     case 'prikup':
       return 'П';
     case 'marriage':

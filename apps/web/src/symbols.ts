@@ -63,8 +63,14 @@ export function markSymbol(m: Mark): Symbol | null {
       return sym('winner', undefined, '♔', 'win', 'Победитель партии');
     case 'bolt':
       return m.penalty
-        ? sym('bolt', PENALTY_LABEL, '•', 'penalty', `Третий болт (всего ${m.count})`)
-        : sym('bolt', undefined, '•', 'muted', `Болт (всего ${m.count})`);
+        ? sym(
+            'bolt',
+            `${m.count} ${PENALTY_LABEL}`,
+            '•',
+            'penalty',
+            `Болт №${m.count} — каждый третий даёт −120`,
+          )
+        : sym('bolt', `${m.count}`, '•', 'muted', `Болт №${m.count} в партии`);
     case 'prikup':
       return sym('prikup', undefined, 'П', 'muted', 'Сидит на прикупе');
     case 'marriage':
@@ -173,10 +179,10 @@ export const LEGEND: { symbols: Symbol[]; meaning: string }[] = [
   { symbols: [sym('dark', undefined, '◐', undefined, '')], meaning: 'Тёмная' },
   {
     symbols: [
-      sym('bolt', undefined, '•', 'muted', ''),
-      sym('bolt', PENALTY_LABEL, '•', 'penalty', ''),
+      sym('bolt', '1', '•', 'muted', ''),
+      sym('bolt', `3 ${PENALTY_LABEL}`, '•', 'penalty', ''),
     ],
-    meaning: 'Болт, третий болт',
+    meaning: 'Болт и его номер, каждый третий −120',
   },
   { symbols: [sym('barrel', '1', '▣', 'barrel', '')], meaning: 'На бочке, номер кона' },
   {
