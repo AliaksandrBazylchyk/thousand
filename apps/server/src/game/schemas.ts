@@ -62,12 +62,37 @@ export const gameActionSchema = z.discriminatedUnion('type', [
 
 export const actionPayloadSchema = z.object({
   gameId: id,
-  actorId: id,
   action: gameActionSchema,
 });
 
-export const createRoomSchema = z.object({ name: z.string().trim().min(1).max(60) });
-export const createPlayerSchema = z.object({ name: z.string().trim().min(1).max(30) });
+const alias = z.string().trim().min(1, 'Введите псевдоним').max(30);
+const password = z.string().min(6, 'Пароль — не короче 6 знаков').max(200);
+const userName = z.string().trim().min(1, 'Введите имя').max(40);
+
+export const registerSchema = z.object({
+  login: z
+    .string()
+    .trim()
+    .regex(
+      /^[A-Za-z0-9._-]{3,32}$/,
+      'Логин: латиница, цифры, точка, дефис, подчёркивание — от 3 до 32 знаков',
+    ),
+  password,
+  name: userName,
+});
+export const loginSchema = z.object({
+  login: z.string().trim().min(1, 'Введите логин').max(32),
+  password: z.string().min(1, 'Введите пароль').max(200),
+});
+export const profileSchema = z.object({ name: userName });
+export const avatarSchema = z.object({ image: z.string().max(500_000).nullable() });
+export const passwordSchema = z.object({ current: z.string().max(200), next: password });
+
+export const createRoomSchema = z.object({ name: z.string().trim().min(1).max(60), alias });
+export const joinRoomSchema = z
+  .object({ alias: alias.optional(), claimPlayerId: id.optional() })
+  .refine((v) => v.alias || v.claimPlayerId, 'Введите псевдоним');
+export const aliasSchema = z.object({ alias });
 export const createGameSchema = z
   .object({
     seats: z.array(id).min(2).max(4),

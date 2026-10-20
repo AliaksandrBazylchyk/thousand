@@ -9,14 +9,16 @@ import { ScoreTable } from '../components/ScoreTable';
 import { GameStatsTable } from '../components/Stats';
 import { Sym } from '../components/Sym';
 import { ErrorText, useRun, type GameCtx } from '../components/ui';
-import { useAct, useGame, useMe } from '../hooks';
+import { useAct, useGame, useRoom } from '../hooks';
 import { useSettings } from '../settings';
 
 export function GamePage() {
   const { code = '', gameId = '' } = useParams();
   const { view, error } = useGame(gameId);
-  const [me] = useMe(code);
-  const act = useAct(gameId, me?.id ?? null);
+  // Свой игрок — участник комнаты вошедшего пользователя; сервер определяет его так же.
+  const { room, error: roomError } = useRoom(code);
+  const me = room?.me ?? null;
+  const act = useAct(gameId);
   const [opened, setOpened] = useState<string | null>(null);
   const settings = useSettings();
   const [showMarriages, setShowMarriages] = useState(settings.marriages);
@@ -35,6 +37,15 @@ export function GamePage() {
     };
   }, [view, me, act]);
 
+  if (roomError?.status === 403) {
+    return (
+      <main className="page">
+        <p className="card">
+          Вы не участник этой комнаты. <Link to={`/r/${code}`}>Войти в комнату</Link>
+        </p>
+      </main>
+    );
+  }
   if (error) return <main className="page error">{error}</main>;
   if (!ctx) return <main className="page muted">Загрузка…</main>;
   const { view: v } = ctx;
@@ -58,11 +69,8 @@ export function GamePage() {
       <main className="game-main">
         {current === 'hand' && (
           <>
-            {!me && (
-              <p className="card small">
-                Вы смотрите как зритель. <Link to={`/r/${code}`}>Войдите в комнате</Link>, чтобы
-                вводить очки.
-              </p>
+            {room && !ctx.isSeated && (
+              <p className="card small">Вы не за столом этой партии — только просмотр.</p>
             )}
             {active && (v.draft ? <PlayPanel ctx={ctx} /> : <DealPanel ctx={ctx} />)}
             {!active && <FinishedBanner ctx={ctx} />}
@@ -104,7 +112,11 @@ export function GamePage() {
             {/* История правок и меню ведущего — только у ведущего. */}
             {ctx.isHost && <EditLog ctx={ctx} />}
             <section className="card stack-sm">
-              <Link to={`/r/${code}/g/${gameId}/tv`}>Таблица для ТВ</Link>
+              {room && (
+                <Link to={`/tv/${room.tvKey}/g/${gameId}`} target="_blank">
+                  Таблица для ТВ
+                </Link>
+              )}
               {v.state.rows.length > 0 && (
                 <span className="row small">
                   Экспорт партии:

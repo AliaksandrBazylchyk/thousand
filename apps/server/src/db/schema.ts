@@ -1,5 +1,14 @@
 import { sql } from 'drizzle-orm';
-import { index, integer, primaryKey, sqliteTable, text, unique } from 'drizzle-orm/sqlite-core';
+import {
+  blob,
+  index,
+  integer,
+  primaryKey,
+  sqliteTable,
+  text,
+  unique,
+  uniqueIndex,
+} from 'drizzle-orm/sqlite-core';
 import type {
   DarkStatus,
   DealEventType,
@@ -14,10 +23,39 @@ const createdAt = () =>
     .notNull()
     .default(sql`(unixepoch('subsec') * 1000)`);
 
+export const users = sqliteTable('users', {
+  id: text('id').primaryKey(),
+  /** Логин в нижнем регистре — уникален. */
+  login: text('login').notNull().unique(),
+  name: text('name').notNull(),
+  /** scrypt$соль$хеш (base64). */
+  passwordHash: text('password_hash').notNull(),
+  avatar: blob('avatar', { mode: 'buffer' }),
+  avatarType: text('avatar_type'),
+  avatarUpdatedAt: integer('avatar_updated_at', { mode: 'timestamp_ms' }),
+  createdAt: createdAt(),
+});
+
+export const sessions = sqliteTable(
+  'sessions',
+  {
+    /** SHA-256 токена из cookie: сам токен в базе не хранится. */
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index('sessions_user_idx').on(t.userId)],
+);
+
 export const rooms = sqliteTable('rooms', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   code: text('code').notNull().unique(),
+  /** Секрет ссылки для телевизора: просмотр без входа. */
+  tvKey: text('tv_key'),
   createdAt: createdAt(),
 });
 
@@ -28,12 +66,18 @@ export const players = sqliteTable(
     roomId: text('room_id')
       .notNull()
       .references(() => rooms.id),
+    /** Псевдоним в комнате. */
     name: text('name').notNull(),
     /** Имя в нижнем регистре без лишних пробелов — для уникальности в комнате. */
     nameKey: text('name_key').notNull(),
+    /** Пользователь-участник. Пусто — игрок из истории до учётных записей. */
+    userId: text('user_id').references(() => users.id),
     createdAt: createdAt(),
   },
-  (t) => [unique().on(t.roomId, t.nameKey)],
+  (t) => [
+    unique().on(t.roomId, t.nameKey),
+    uniqueIndex('players_room_user_idx').on(t.roomId, t.userId),
+  ],
 );
 
 export const games = sqliteTable(

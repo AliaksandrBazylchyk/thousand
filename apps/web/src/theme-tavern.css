@@ -501,3 +501,92 @@
     0 0.04em 0 var(--frame-light),
     0 0.08em 0.3em rgb(0 0 0 / 0.7);
 }
+
+/* ─── Учётные записи ──────────────────────────────────────────────────── */
+
+:root[data-theme='tavern'] .avatar {
+  background: #2a1f15;
+  color: var(--accent-hi);
+  border-color: var(--accent);
+  font-family: var(--font-title);
+}
+:root[data-theme='tavern'] .avatar.big {
+  border-width: 3px;
+  box-shadow:
+    0 0 0 4px #2a1f15,
+    0 0 0 5px var(--frame-light);
+}
+:root[data-theme='tavern'] .faces .avatar {
+  border-color: var(--surface);
+  box-shadow: 0 0 0 1px var(--frame-light);
+}
+:root[data-theme='tavern'] .profile-chip {
+  border-color: var(--frame);
+  background: #17120d;
+}
+:root[data-theme='tavern'] .auth-brand h1 {
+  font-size: 3.2rem;
+  letter-spacing: 0.06em;
+}
+:root[data-theme='tavern'] .auth-card {
+  border: 2px solid var(--frame-light);
+  background: #1a140e;
+  box-shadow:
+    inset 0 0 0 3px #120d09,
+    inset 0 0 0 4px #5a4429;
+}
+:root[data-theme='tavern'] .segmented {
+  border-radius: 4px;
+}
+:root[data-theme='tavern'] .segmented button {
+  border-radius: 3px;
+  font-family: var(--font-title);
+  font-size: 1.2rem;
+}
+:root[data-theme='tavern'] .segmented button.on {
+  background: var(--chip-on);
+  border-color: var(--accent-hi);
+  box-shadow: inset 0 0 0 2px var(--frame-light);
+  color: var(--accent-hi);
+}
+:root[data-theme='tavern'] .hint {
+  color: #8a7a60;
+}
+:root[data-theme='tavern'] .error-box {
+  border-color: rgb(224 106 79 / 0.5);
+  background: rgb(224 106 79 / 0.08);
+  border-radius: 4px;
+}
+:root[data-theme='tavern'] .btn.big {
+  font-size: 1.4rem;
+  letter-spacing: 0.04em;
+}
+:root[data-theme='tavern'] .room-card.member {
+  border-color: var(--frame-light);
+}
+:root[data-theme='tavern'] .room-card-tag {
+  color: var(--accent);
+}
+:root[data-theme='tavern'] :is(.members li, .title-font) {
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+:root[data-theme='tavern'] .choice {
+  border-radius: 4px;
+}
+:root[data-theme='tavern'] .choice.on {
+  border-color: var(--accent-hi);
+  box-shadow: inset 0 0 0 2px var(--frame-light);
+}
+:root[data-theme='tavern'] .choice-mark {
+  border-color: var(--frame);
+}
+:root[data-theme='tavern'] .choice.on .choice-mark {
+  border-color: var(--accent-hi);
+  background: var(--accent);
+}
+:root[data-theme='tavern'] .input.big-alias {
+  font-family: var(--font-title);
+  font-size: 1.5rem;
+}

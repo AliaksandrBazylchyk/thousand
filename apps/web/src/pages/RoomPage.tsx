@@ -1,18 +1,18 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import type { GameSummary, PlayerId, PlayerRef, RoomView } from '@thousand/core';
+import type { GameSummary, PlayerId, RoomJoinView, RoomView } from '@thousand/core';
 import { api } from '../api';
-import { useMe, useRoom } from '../hooks';
+import { useMeUser } from '../auth';
+import { Avatar } from '../components/Avatar';
+import { useRoom } from '../hooks';
 
 export function RoomPage() {
   const { code = '' } = useParams();
-  const { room, error } = useRoom(code);
-  const [me, setMe] = useMe(code);
+  const { room, error, reload } = useRoom(code);
 
-  if (error) return <main className="page error">{error}</main>;
+  if (error?.status === 403) return <JoinRoom code={code} onJoined={reload} />;
+  if (error) return <main className="page error">{error.message}</main>;
   if (!room) return <main className="page muted">Загрузка…</main>;
-
-  const known = me && room.players.some((p) => p.id === me.id) ? me : null;
 
   return (
     <main className="page">
@@ -22,10 +22,7 @@ export function RoomPage() {
         </Link>
         <h1>{room.name}</h1>
         <div className="row">
-          <ShareLink />
-          <Link className="btn small" to={`/r/${room.code}/tv`} target="_blank">
-            Таблица для ТВ
-          </Link>
+          <CopyButton text={`${location.origin}/r/${room.code}`} label="Ссылка на комнату" />
           <Link className="btn small" to={`/r/${room.code}/stats`}>
             Статистика
           </Link>
@@ -35,20 +32,235 @@ export function RoomPage() {
         </div>
       </header>
 
-      {known ? (
-        <p className="row">
-          Вы: <b>{known.name}</b>
-          <button className="btn small" onClick={() => setMe(null)}>
-            Это не я
-          </button>
-        </p>
-      ) : (
-        <IdentifyForm room={room} onDone={setMe} />
-      )}
-
+      <AliasCard room={room} />
+      <Members room={room} />
+      <TvLink room={room} />
       <GamesList room={room} />
-      {known && <NewGameForm room={room} me={known} />}
+      <NewGameForm room={room} />
     </main>
+  );
+}
+
+/** Вход в комнату: псевдоним или своё имя из прошлых партий (ТЗ 5.2). */
+function JoinRoom({ code, onJoined }: { code: string; onJoined: () => void }) {
+  const me = useMeUser();
+  const [info, setInfo] = useState<RoomJoinView | null>(null);
+  const [alias, setAlias] = useState(me.name);
+  const [claim, setClaim] = useState<PlayerId | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    api
+      .getJoin(code)
+      .then(setInfo)
+      .catch((e: Error) => setError(e.message));
+  }, [code]);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      await api.join(code, claim ? { claimPlayerId: claim } : { alias });
+      onJoined();
+    } catch (err) {
+      setError((err as Error).message);
+      setBusy(false);
+    }
+  }
+
+  if (!info) {
+    return <main className={`page ${error ? 'error' : 'muted'}`}>{error ?? 'Загрузка…'}</main>;
+  }
+
+  return (
+    <main className="page">
+      <header className="stack-sm">
+        <Link to="/" className="muted small">
+          ← Все комнаты
+        </Link>
+        <span className="muted small">Комната</span>
+        <h1>{info.name}</h1>
+      </header>
+
+      <section className="card row">
+        <Avatar name={me.name} url={me.avatarUrl} size={52} />
+        <span className="stack-sm">
+          <span className="muted small">Вы входите как</span>
+          <b className="title-font">{me.name}</b>
+        </span>
+      </section>
+
+      <form className="stack" onSubmit={submit}>
+        <section className={`card stack ${claim ? 'dimmed' : ''}`}>
+          <label className="field">
+            Псевдоним в этой комнате
+            <input
+              className="input big-alias"
+              value={alias}
+              onChange={(e) => {
+                setAlias(e.target.value);
+                setClaim(null);
+              }}
+              maxLength={30}
+              required={!claim}
+            />
+            <span className="hint">
+              Так вас видят за столом и в таблице. Имя в профиле не меняется, псевдоним можно
+              сменить позже.
+            </span>
+          </label>
+        </section>
+
+        {info.history.length > 0 && (
+          <section className="stack-sm">
+            <h2>Уже играли здесь?</h2>
+            <p className="hint">
+              Выберите своё имя из прошлых партий — история и статистика перейдут к вам.
+            </p>
+            <div className="stack-sm" role="radiogroup" aria-label="Игрок из прошлых партий">
+              <button
+                type="button"
+                role="radio"
+                aria-checked={claim === null}
+                className={`choice ${claim === null ? 'on' : ''}`}
+                onClick={() => setClaim(null)}
+              >
+                <span className="choice-mark" aria-hidden="true" />
+                <span className="grow">Нет, я здесь впервые</span>
+              </button>
+              {info.history.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={claim === p.id}
+                  className={`choice ${claim === p.id ? 'on' : ''}`}
+                  onClick={() => setClaim(p.id)}
+                >
+                  <span className="choice-mark" aria-hidden="true" />
+                  <span className="grow title-font">{p.name}</span>
+                  <span className="muted small">партий: {p.games}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {error && (
+          <p className="error-box" role="alert">
+            {error}
+          </p>
+        )}
+        <button className="btn primary big" disabled={busy || (!claim && !alias.trim())}>
+          Войти в комнату
+        </button>
+      </form>
+    </main>
+  );
+}
+
+/** Ваш псевдоним в комнате и его смена. */
+function AliasCard({ room }: { room: RoomView }) {
+  const [editing, setEditing] = useState(false);
+  const [alias, setAlias] = useState(room.me.name);
+  const [error, setError] = useState<string | null>(null);
+
+  async function save(e: FormEvent) {
+    e.preventDefault();
+    try {
+      await api.setAlias(room.code, alias);
+      setEditing(false);
+      setError(null);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  if (!editing) {
+    return (
+      <p className="row">
+        <Avatar name={room.me.name} url={room.me.avatarUrl} size={32} />
+        Вы: <b>{room.me.name}</b>
+        <button
+          className="btn small"
+          onClick={() => {
+            setAlias(room.me.name);
+            setEditing(true);
+          }}
+        >
+          Сменить псевдоним
+        </button>
+      </p>
+    );
+  }
+  return (
+    <form className="card stack-sm" onSubmit={save}>
+      <label className="field">
+        Псевдоним в этой комнате
+        <span className="input-row">
+          <input
+            className="input"
+            value={alias}
+            onChange={(e) => setAlias(e.target.value)}
+            maxLength={30}
+            required
+            autoFocus
+          />
+          <button className="btn primary">Сохранить</button>
+        </span>
+      </label>
+      <button type="button" className="link-btn muted" onClick={() => setEditing(false)}>
+        Отмена
+      </button>
+      {error && <p className="error">{error}</p>}
+    </form>
+  );
+}
+
+function Members({ room }: { room: RoomView }) {
+  return (
+    <section className="stack-sm">
+      <h2>Участники</h2>
+      <ul className="members">
+        {room.players.map((p) => (
+          <li key={p.id}>
+            <Avatar name={p.name} url={p.avatarUrl} size={40} />
+            <span>{p.name}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** Секретная ссылка для ТВ: просмотр без входа, можно перевыпустить (ТЗ 6.3). */
+function TvLink({ room }: { room: RoomView }) {
+  const url = `${location.origin}/tv/${room.tvKey}`;
+  return (
+    <section className="card stack-sm">
+      <h3>Таблица для ТВ</h3>
+      <p className="hint">
+        Откройте ссылку на телевизоре — вход не нужен. Ссылка секретная: перевыпустите её, если она
+        попала не туда.
+      </p>
+      <div className="row">
+        <Link className="btn small" to={`/tv/${room.tvKey}`} target="_blank">
+          Открыть
+        </Link>
+        <CopyButton text={url} label="Скопировать ссылку" />
+        <button
+          className="btn small danger"
+          onClick={() => {
+            if (window.confirm('Старая ссылка для ТВ перестанет работать. Перевыпустить?')) {
+              void api.resetTvKey(room.code);
+            }
+          }}
+        >
+          Перевыпустить
+        </button>
+      </div>
+    </section>
   );
 }
 
@@ -79,70 +291,21 @@ async function copyText(text: string): Promise<boolean> {
     ok = false;
   }
   area.remove();
-  if (!ok) window.prompt('Скопируйте ссылку на комнату:', text);
+  if (!ok) window.prompt('Скопируйте ссылку:', text);
   return ok;
 }
 
-function ShareLink() {
+function CopyButton({ text, label }: { text: string; label: string }) {
   const [copied, setCopied] = useState(false);
-  const url = window.location.href;
   return (
     <button
       className="btn small"
       onClick={() => {
-        void copyText(url).then(setCopied);
+        void copyText(text).then(setCopied);
       }}
     >
-      {copied ? 'Ссылка скопирована' : 'Скопировать ссылку на комнату'}
+      {copied ? 'Скопировано' : label}
     </button>
-  );
-}
-
-function IdentifyForm({ room, onDone }: { room: RoomView; onDone: (p: PlayerRef) => void }) {
-  const [name, setName] = useState('');
-  const [error, setError] = useState<string | null>(null);
-
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    try {
-      onDone(await api.ensurePlayer(room.code, name));
-    } catch (err) {
-      setError((err as Error).message);
-    }
-  }
-
-  return (
-    <form className="card stack" onSubmit={submit}>
-      <h2>Кто вы?</h2>
-      <input
-        className="input"
-        list="pool"
-        placeholder="Ваше имя"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        maxLength={30}
-        autoFocus
-        required
-      />
-      <datalist id="pool">
-        {room.players.map((p) => (
-          <option key={p.id} value={p.name} />
-        ))}
-      </datalist>
-      {room.players.length > 0 && (
-        <div className="chips">
-          {room.players.map((p) => (
-            <button type="button" key={p.id} className="chip" onClick={() => onDone(p)}>
-              {p.name}
-            </button>
-          ))}
-        </div>
-      )}
-      <button className="btn primary" disabled={!name.trim()}>
-        Войти
-      </button>
-      {error && <p className="error">{error}</p>}
-    </form>
   );
 }
 
@@ -182,13 +345,14 @@ function GamesList({ room }: { room: RoomView }) {
   );
 }
 
-function NewGameForm({ room, me }: { room: RoomView; me: PlayerRef }) {
+/** Новая партия: за стол садятся только участники комнаты с учётной записью (ТЗ 5.3). */
+function NewGameForm({ room }: { room: RoomView }) {
   const navigate = useNavigate();
+  const myId = room.me.id;
   const [open, setOpen] = useState(false);
-  const [seats, setSeats] = useState<PlayerId[]>([me.id]);
-  const [dealer, setDealer] = useState<PlayerId>(me.id);
-  const [host, setHost] = useState<PlayerId>(me.id);
-  const [newName, setNewName] = useState('');
+  const [seats, setSeats] = useState<PlayerId[]>([myId]);
+  const [dealer, setDealer] = useState<PlayerId>(myId);
+  const [host, setHost] = useState<PlayerId>(myId);
   const [error, setError] = useState<string | null>(null);
   const nameOf = (id: PlayerId) => room.players.find((p) => p.id === id)?.name ?? '?';
 
@@ -211,17 +375,6 @@ function NewGameForm({ room, me }: { room: RoomView; me: PlayerRef }) {
       return next;
     });
 
-  async function addPlayer(e: FormEvent) {
-    e.preventDefault();
-    try {
-      const p = await api.ensurePlayer(room.code, newName);
-      setNewName('');
-      setSeats((s) => (s.includes(p.id) || s.length >= 4 ? s : [...s, p.id]));
-    } catch (err) {
-      setError((err as Error).message);
-    }
-  }
-
   async function create() {
     try {
       const firstDealer = seats.includes(dealer) ? dealer : seats[0]!;
@@ -236,7 +389,10 @@ function NewGameForm({ room, me }: { room: RoomView; me: PlayerRef }) {
   return (
     <section className="card stack">
       <h2>Новая партия</h2>
-      <p className="muted small">Выберите 2–4 игроков. Порядок мест — по часовой стрелке.</p>
+      <p className="muted small">
+        Выберите 2–4 участников комнаты. Порядок мест — по часовой стрелке. Кого нет в списке —
+        пусть зарегистрируется и войдёт в комнату.
+      </p>
       <div className="chips">
         {room.players.map((p) => (
           <button
@@ -249,18 +405,6 @@ function NewGameForm({ room, me }: { room: RoomView; me: PlayerRef }) {
           </button>
         ))}
       </div>
-      <form className="row" onSubmit={addPlayer}>
-        <input
-          className="input"
-          placeholder="Новый игрок"
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          maxLength={30}
-        />
-        <button className="btn" disabled={!newName.trim()}>
-          Добавить
-        </button>
-      </form>
 
       {seats.length > 0 && (
         <ol className="seats">

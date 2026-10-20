@@ -17,7 +17,18 @@ export type GameStatus = 'active' | 'finished' | 'cancelled';
 
 export interface PlayerRef {
   id: PlayerId;
+  /** Псевдоним в комнате. */
   name: string;
+  /** Аватар пользователя-участника (только в комнате и лобби). */
+  avatarUrl?: string | null;
+}
+
+/** Вошедший пользователь. */
+export interface Me {
+  id: string;
+  login: string;
+  name: string;
+  avatarUrl: string | null;
 }
 
 export interface GameSummary {
@@ -32,11 +43,17 @@ export interface GameSummary {
   scores: Record<PlayerId, number>;
 }
 
-/** Комната в общем списке на главной: видна с любого устройства. */
+/** Комната в лобби: видна всем вошедшим. */
 export interface RoomListItem {
   code: string;
   name: string;
   createdAt: number;
+  /** Вы участник комнаты. */
+  member: boolean;
+  /** Ваш псевдоним в комнате. */
+  alias: string | null;
+  /** Участники с учётной записью. */
+  members: PlayerRef[];
   /** Партий всего, без отменённых. */
   games: number;
   /** Идущих сейчас партий. */
@@ -45,12 +62,34 @@ export interface RoomListItem {
   lastActivity: number;
 }
 
+/** Комната для участника. */
 export interface RoomView {
   id: string;
   name: string;
   code: string;
   createdAt: number;
+  /** Ваш игрок в комнате. */
+  me: PlayerRef;
+  /** Секрет ссылки для ТВ. */
+  tvKey: string;
+  /** Участники с учётной записью: их можно посадить за стол. */
   players: PlayerRef[];
+  games: GameSummary[];
+}
+
+/** Комната для того, кто ещё не участник: экран входа с выбором псевдонима. */
+export interface RoomJoinView {
+  code: string;
+  name: string;
+  members: PlayerRef[];
+  /** Игроки из истории без учётной записи — их можно присвоить себе. */
+  history: (PlayerRef & { games: number })[];
+}
+
+/** Комната для ТВ по секретной ссылке. */
+export interface TvRoomView {
+  id: string;
+  name: string;
   games: GameSummary[];
 }
 
@@ -197,11 +236,13 @@ export type ActionResult = { ok: true } | { ok: false; error: string };
 export type JoinResult = { ok: true; view: GameView } | { ok: false; error: string };
 
 export interface ClientToServerEvents {
-  'game:join': (gameId: string, ack: (res: JoinResult) => void) => void;
+  /** Участник — по сессии, ТВ — по секретному ключу комнаты. */
+  'game:join': (req: { gameId: string; tvKey?: string }, ack: (res: JoinResult) => void) => void;
   'game:leave': (gameId: string) => void;
-  'room:join': (roomId: string) => void;
+  'room:join': (req: { roomId: string; tvKey?: string }) => void;
+  /** Действует игрок вошедшего пользователя в комнате партии. */
   'game:action': (
-    payload: { gameId: string; actorId: PlayerId; action: GameAction },
+    payload: { gameId: string; action: GameAction },
     ack: (res: ActionResult) => void,
   ) => void;
 }

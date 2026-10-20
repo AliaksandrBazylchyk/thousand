@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNotNull, isNull, ne } from 'drizzle-orm';
 import {
   CARD_POINTS_TOTAL,
   computeStats,
@@ -17,11 +17,15 @@ import {
   type HandEntry,
   type IssueCode,
   type PlayerId,
+  type PlayerRef,
+  type RoomJoinView,
   type RoomListItem,
   type RoomStatsView,
   type RoomView,
+  type TvRoomView,
   type Turn,
 } from '@thousand/core';
+import { avatarUrl } from '../auth';
 import type { Db } from '../db';
 import {
   dealEvents,
@@ -32,11 +36,12 @@ import {
   hands,
   players,
   rooms,
+  users,
 } from '../db/schema';
-import { nameKey, newId, newRoomCode } from '../ids';
+import { AccessError, GameError } from '../errors';
+import { nameKey, newId, newRoomCode, newTvKey } from '../ids';
 
-/** Ошибка, которую можно показать пользователю. */
-export class GameError extends Error {}
+export { GameError };
 
 type HandRow = typeof hands.$inferSelect;
 type InputRow = typeof handInputs.$inferSelect;
@@ -72,28 +77,99 @@ interface LoadedGame {
 export function createGameService(db: Db, onChange: (gameId: string, roomId: string) => void) {
   const cache = new Map<string, GameView>();
 
-  // ─── Комнаты и игроки ──────────────────────────────────────────────────
+  // ─── Комнаты и участники ───────────────────────────────────────────────
 
-  function createRoom(name: string) {
+  const cleanName = (name: string) => name.trim().replace(/\s+/g, ' ');
+
+  function roomByCode(code: string) {
+    const room = db.select().from(rooms).where(eq(rooms.code, code.toLowerCase())).get();
+    if (!room) throw new AccessError('Комната не найдена', 404);
+    return room;
+  }
+
+  function membership(roomId: string, userId: string) {
+    return db
+      .select()
+      .from(players)
+      .where(and(eq(players.roomId, roomId), eq(players.userId, userId)))
+      .get();
+  }
+
+  /** Комната и ваш игрок в ней: содержимое комнаты — только участникам. */
+  function requireMember(code: string, userId: string) {
+    const room = roomByCode(code);
+    const player = membership(room.id, userId);
+    if (!player) throw new AccessError('Вы не участник этой комнаты', 403);
+    return { room, player };
+  }
+
+  /** Участники с учётной записью (во всех комнатах или в одной): псевдоним и аватар. */
+  function memberRows(roomId?: string) {
+    return db
+      .select({
+        id: players.id,
+        name: players.name,
+        roomId: players.roomId,
+        userId: players.userId,
+        avatarUpdatedAt: users.avatarUpdatedAt,
+      })
+      .from(players)
+      .innerJoin(users, eq(users.id, players.userId))
+      .where(roomId ? eq(players.roomId, roomId) : undefined)
+      .orderBy(asc(players.name))
+      .all();
+  }
+
+  const toRef = (m: ReturnType<typeof memberRows>[number]): PlayerRef => ({
+    id: m.id,
+    name: m.name,
+    avatarUrl: avatarUrl({ id: m.userId!, avatarUpdatedAt: m.avatarUpdatedAt }),
+  });
+
+  /** Ключ псевдонима, если он свободен в комнате. */
+  function freeAliasKey(roomId: string, alias: string, exceptPlayerId?: string) {
+    const key = nameKey(alias);
+    const taken = db
+      .select({ id: players.id })
+      .from(players)
+      .where(
+        and(
+          eq(players.roomId, roomId),
+          eq(players.nameKey, key),
+          exceptPlayerId ? ne(players.id, exceptPlayerId) : undefined,
+        ),
+      )
+      .get();
+    if (taken) throw new GameError(`Псевдоним «${cleanName(alias)}» уже занят в этой комнате`);
+    return key;
+  }
+
+  /** Новая комната; создатель сразу участник со своим псевдонимом. */
+  function createRoom(name: string, userId: string, alias: string) {
     for (let attempt = 0; attempt < 10; attempt++) {
       const code = newRoomCode();
       if (db.select().from(rooms).where(eq(rooms.code, code)).get()) continue;
-      const room = { id: newId(), name, code };
-      db.insert(rooms).values(room).run();
-      return room;
+      const room = { id: newId(), name, code, tvKey: newTvKey() };
+      const player = {
+        id: newId(),
+        roomId: room.id,
+        name: cleanName(alias),
+        nameKey: nameKey(alias),
+        userId,
+      };
+      db.transaction((tx) => {
+        tx.insert(rooms).values(room).run();
+        tx.insert(players).values(player).run();
+      });
+      return { id: room.id, name: room.name, code: room.code };
     }
     throw new Error('Не удалось подобрать код комнаты');
   }
 
-  function roomByCode(code: string) {
-    const room = db.select().from(rooms).where(eq(rooms.code, code.toLowerCase())).get();
-    if (!room) throw new GameError('Комната не найдена');
-    return room;
-  }
-
-  /** Все комнаты для главной страницы: свежая активность сверху. */
-  function listRooms(): RoomListItem[] {
+  /** Лобби: все комнаты, свежая активность сверху (ТЗ 5, 6.0). */
+  function listRooms(userId: string): RoomListItem[] {
     const roomRows = db.select().from(rooms).all();
+    const allMembers = memberRows();
     const gameRows = db
       .select({
         roomId: games.roomId,
@@ -107,10 +183,15 @@ export function createGameService(db: Db, onChange: (gameId: string, roomId: str
       .map((room) => {
         const own = gameRows.filter((g) => g.roomId === room.id && g.status !== 'cancelled');
         const times = own.flatMap((g) => [g.startedAt.getTime(), g.finishedAt?.getTime() ?? 0]);
+        const roomMembers = allMembers.filter((m) => m.roomId === room.id);
+        const mine = roomMembers.find((m) => m.userId === userId);
         return {
           code: room.code,
           name: room.name,
           createdAt: room.createdAt.getTime(),
+          member: !!mine,
+          alias: mine?.name ?? null,
+          members: roomMembers.map(toRef),
           games: own.length,
           activeGames: own.filter((g) => g.status === 'active').length,
           lastActivity: Math.max(room.createdAt.getTime(), ...times),
@@ -119,61 +200,180 @@ export function createGameService(db: Db, onChange: (gameId: string, roomId: str
       .sort((a, b) => b.lastActivity - a.lastActivity);
   }
 
-  function roomView(code: string): RoomView {
-    const room = roomByCode(code);
-    const pool = db
-      .select({ id: players.id, name: players.name })
-      .from(players)
-      .where(eq(players.roomId, room.id))
-      .orderBy(asc(players.name))
-      .all();
-    const gameRows = db
+  function tvKeyOf(room: typeof rooms.$inferSelect): string {
+    if (room.tvKey) return room.tvKey;
+    const tvKey = newTvKey();
+    db.update(rooms).set({ tvKey }).where(eq(rooms.id, room.id)).run();
+    return tvKey;
+  }
+
+  function roomGames(roomId: string): GameSummary[] {
+    return db
       .select({ id: games.id })
       .from(games)
-      .where(eq(games.roomId, room.id))
+      .where(eq(games.roomId, roomId))
       .orderBy(asc(games.startedAt))
-      .all();
+      .all()
+      .map((g) => summary(getView(g.id)))
+      .reverse();
+  }
+
+  function roomView(code: string, userId: string): RoomView {
+    const { room, player } = requireMember(code, userId);
+    const roomMembers = memberRows(room.id);
+    const me = roomMembers.find((m) => m.id === player.id)!;
     return {
       id: room.id,
       name: room.name,
       code: room.code,
       createdAt: room.createdAt.getTime(),
-      players: pool,
-      games: gameRows.map((g) => summary(getView(g.id))).reverse(),
+      me: toRef(me),
+      tvKey: tvKeyOf(room),
+      players: roomMembers.map(toRef),
+      games: roomGames(room.id),
     };
   }
 
-  /** Находит игрока по имени в пуле комнаты или создаёт нового. */
-  function ensurePlayer(code: string, name: string) {
+  /** Экран входа в комнату: участники и игроки из истории без учётной записи. */
+  function joinView(code: string): RoomJoinView {
     const room = roomByCode(code);
-    const key = nameKey(name);
-    const existing = db
+    const unclaimed = db
       .select({ id: players.id, name: players.name })
       .from(players)
-      .where(and(eq(players.roomId, room.id), eq(players.nameKey, key)))
-      .get();
-    if (existing) return existing;
-    const player = {
-      id: newId(),
-      roomId: room.id,
-      name: name.trim().replace(/\s+/g, ' '),
-      nameKey: key,
+      .where(and(eq(players.roomId, room.id), isNull(players.userId)))
+      .orderBy(asc(players.name))
+      .all();
+    const seats = unclaimed.length
+      ? db
+          .select({ playerId: gamePlayers.playerId })
+          .from(gamePlayers)
+          .innerJoin(games, eq(games.id, gamePlayers.gameId))
+          .where(
+            and(
+              inArray(
+                gamePlayers.playerId,
+                unclaimed.map((p) => p.id),
+              ),
+              ne(games.status, 'cancelled'),
+            ),
+          )
+          .all()
+      : [];
+    return {
+      code: room.code,
+      name: room.name,
+      members: memberRows(room.id).map(toRef),
+      history: unclaimed.map((p) => ({
+        ...p,
+        games: seats.filter((s) => s.playerId === p.id).length,
+      })),
     };
-    db.insert(players).values(player).run();
+  }
+
+  /** Вход в комнату: новый псевдоним или своё имя из истории (история переходит к вам). */
+  function join(code: string, userId: string, req: { alias?: string; claimPlayerId?: string }) {
+    const room = roomByCode(code);
+    if (membership(room.id, userId)) return { code: room.code };
+    if (req.claimPlayerId) {
+      const claimed = db
+        .update(players)
+        .set({ userId })
+        .where(
+          and(
+            eq(players.id, req.claimPlayerId),
+            eq(players.roomId, room.id),
+            isNull(players.userId),
+          ),
+        )
+        .run();
+      if (claimed.changes === 0) throw new GameError('Этот игрок уже занят');
+    } else {
+      const alias = cleanName(req.alias ?? '');
+      if (!alias) throw new GameError('Введите псевдоним');
+      const key = freeAliasKey(room.id, alias);
+      db.insert(players)
+        .values({ id: newId(), roomId: room.id, name: alias, nameKey: key, userId })
+        .run();
+    }
     onChange('', room.id);
-    return { id: player.id, name: player.name };
+    return { code: room.code };
+  }
+
+  /** Смена псевдонима: имя меняется во всех партиях комнаты. */
+  function setAlias(code: string, userId: string, alias: string) {
+    const { room, player } = requireMember(code, userId);
+    const name = cleanName(alias);
+    const key = freeAliasKey(room.id, name, player.id);
+    db.update(players).set({ name, nameKey: key }).where(eq(players.id, player.id)).run();
+    const seatedIn = db
+      .select({ id: gamePlayers.gameId })
+      .from(gamePlayers)
+      .where(eq(gamePlayers.playerId, player.id))
+      .all();
+    for (const g of seatedIn) {
+      cache.delete(g.id);
+      onChange(g.id, room.id);
+    }
+    onChange('', room.id);
+    return { id: player.id, name };
+  }
+
+  /** Новая ТВ-ссылка; старая перестаёт работать. */
+  function resetTvKey(code: string, userId: string) {
+    const { room } = requireMember(code, userId);
+    const tvKey = newTvKey();
+    db.update(rooms).set({ tvKey }).where(eq(rooms.id, room.id)).run();
+    onChange('', room.id);
+    return { tvKey };
+  }
+
+  function roomByTvKey(tvKey: string) {
+    const room = tvKey ? db.select().from(rooms).where(eq(rooms.tvKey, tvKey)).get() : undefined;
+    if (!room) throw new AccessError('Ссылка для ТВ недействительна', 404);
+    return room;
+  }
+
+  function tvRoom(tvKey: string): TvRoomView {
+    const room = roomByTvKey(tvKey);
+    return { id: room.id, name: room.name, games: roomGames(room.id) };
+  }
+
+  /** Доступ к комнате: участнику по сессии, ТВ — по ключу ссылки. */
+  function assertRoomAccess(roomId: string, who: { userId?: string | null; tvKey?: string }) {
+    if (who.tvKey) {
+      if (roomByTvKey(who.tvKey).id === roomId) return;
+    } else if (who.userId && membership(roomId, who.userId)) {
+      return;
+    }
+    throw new AccessError('Нет доступа к этой комнате', 403);
+  }
+
+  function assertGameAccess(gameId: string, who: { userId?: string | null; tvKey?: string }) {
+    const game = db.select({ roomId: games.roomId }).from(games).where(eq(games.id, gameId)).get();
+    if (!game) throw new AccessError('Партия не найдена', 404);
+    assertRoomAccess(game.roomId, who);
   }
 
   // ─── Партии ────────────────────────────────────────────────────────────
 
-  function createGame(code: string, seats: PlayerId[], firstDealerId: PlayerId, hostId: PlayerId) {
-    const room = roomByCode(code);
+  function createGame(
+    code: string,
+    userId: string,
+    seats: PlayerId[],
+    firstDealerId: PlayerId,
+    hostId: PlayerId,
+  ) {
+    const { room } = requireMember(code, userId);
     const pool = db
       .select({ id: players.id })
       .from(players)
-      .where(and(eq(players.roomId, room.id), inArray(players.id, seats)))
+      .where(
+        and(eq(players.roomId, room.id), inArray(players.id, seats), isNotNull(players.userId)),
+      )
       .all();
-    if (pool.length !== seats.length) throw new GameError('Игрок не из этой комнаты');
+    if (pool.length !== seats.length) {
+      throw new GameError('За стол садятся только участники комнаты с учётной записью');
+    }
     const id = newId();
     db.transaction((tx) => {
       tx.insert(games).values({ id, roomId: room.id, hostId, firstDealerId }).run();
@@ -330,9 +530,13 @@ export function createGameService(db: Db, onChange: (gameId: string, roomId: str
 
   // ─── Действия ──────────────────────────────────────────────────────────
 
-  function act(gameId: string, actorId: PlayerId, action: GameAction) {
+  /** Действие от имени игрока вошедшего пользователя в комнате партии (ТЗ 9.1). */
+  function act(gameId: string, userId: string, action: GameAction) {
     const g = load(gameId);
-    if (!g.setup.seats.includes(actorId)) throw new GameError('Вы не участвуете в этой партии');
+    const actorId = membership(g.room.id, userId)?.id;
+    if (!actorId || !g.setup.seats.includes(actorId)) {
+      throw new AccessError('Вы не участвуете в этой партии', 403);
+    }
     if (action.type === 'editHand' || action.type === 'deleteDealEvent') {
       edit(g, actorId, action);
     } else {
@@ -744,8 +948,8 @@ export function createGameService(db: Db, onChange: (gameId: string, roomId: str
     }
   }
 
-  function roomStats(code: string): RoomStatsView {
-    const room = roomByCode(code);
+  function roomStats(code: string, userId: string): RoomStatsView {
+    const { room } = requireMember(code, userId);
     const finished = db
       .select({ id: games.id })
       .from(games)
@@ -831,8 +1035,14 @@ export function createGameService(db: Db, onChange: (gameId: string, roomId: str
     createRoom,
     listRooms,
     roomView,
+    joinView,
+    join,
+    setAlias,
+    resetTvKey,
+    tvRoom,
+    assertRoomAccess,
+    assertGameAccess,
     roomStats,
-    ensurePlayer,
     createGame,
     getView,
     details,

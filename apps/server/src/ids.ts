@@ -1,6 +1,9 @@
-import { randomInt, randomUUID } from 'node:crypto';
+import { randomBytes, randomInt, randomUUID } from 'node:crypto';
 
 export const newId = () => randomUUID();
+
+/** Секрет ссылки для ТВ: подобрать перебором невозможно. */
+export const newTvKey = () => randomBytes(12).toString('hex');
 
 const CODE_ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789';
 

@@ -5,31 +5,31 @@ import { Celebration } from '../components/Celebration';
 import { ScoreChart } from '../components/ScoreChart';
 import { ScoreTable } from '../components/ScoreTable';
 import { Sym } from '../components/Sym';
-import { useGame, useRoom } from '../hooks';
+import { useGame, useTvRoom } from '../hooks';
 import { useSettings } from '../settings';
 import { LEGEND } from '../symbols';
 
-/** ТВ по ссылке комнаты: показывает идущую партию и сам переключается на новую. */
+/** ТВ по секретной ссылке комнаты: показывает идущую партию и сам переключается на новую. */
 export function TvRoomPage() {
-  const { code = '' } = useParams();
-  const { room, error } = useRoom(code);
+  const { key = '' } = useParams();
+  const { room, error } = useTvRoom(key);
   if (error) return <div className="tv tv-message">{error}</div>;
   if (!room) return <div className="tv tv-message">Загрузка…</div>;
   const game =
     room.games.find((g) => g.status === 'active') ??
     room.games.find((g) => g.status === 'finished');
   if (!game) return <div className="tv tv-message">{room.name}: партий пока нет</div>;
-  return <TvGame key={game.id} gameId={game.id} />;
+  return <TvGame key={game.id} gameId={game.id} tvKey={key} />;
 }
 
 export function TvGamePage() {
-  const { gameId = '' } = useParams();
-  return <TvGame gameId={gameId} />;
+  const { key = '', gameId = '' } = useParams();
+  return <TvGame gameId={gameId} tvKey={key} />;
 }
 
 /** Общая таблица на телевизоре (ТЗ 6.3): только просмотр, 1920×1080, обновляется сама. */
-function TvGame({ gameId }: { gameId: string }) {
-  const { view, error } = useGame(gameId);
+function TvGame({ gameId, tvKey }: { gameId: string; tvKey: string }) {
+  const { view, error } = useGame(gameId, tvKey);
   const [params, setParams] = useSearchParams();
   const settings = useSettings();
   const showMarriages = params.has('m') ? params.get('m') === '1' : settings.marriages;
