@@ -5,7 +5,10 @@ import globals from 'globals';
 import prettier from 'eslint-config-prettier';
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/coverage/**', '**/node_modules/**', '**/*.sqlite*'] },
+  {
+    // .claude — служебная папка, в т. ч. git-worktree других сессий.
+    ignores: ['**/dist/**', '**/coverage/**', '**/node_modules/**', '**/*.sqlite*', '.claude/**'],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
