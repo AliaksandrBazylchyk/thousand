@@ -48,6 +48,8 @@ export interface PlayerStats {
     redealPenalties: number;
     ninePenalties: number;
     misdeals: number;
+    /** Нарушения правил: ведущий прервал кон с −120. */
+    violations: number;
   };
   barrel: {
     sits: number;
@@ -121,6 +123,7 @@ function emptyStats(playerId: PlayerId): PlayerStats {
       redealPenalties: 0,
       ninePenalties: 0,
       misdeals: 0,
+      violations: 0,
     },
     barrel: { sits: 0, wins: 0, falls: 0, knocked: 0, knockedBy: {}, avgWinAttempt: null },
     bulldozers: { total: 0, fromPlus: 0, fromMinus: 0 },
@@ -200,7 +203,8 @@ export function computeStats(games: readonly StatsGame[]): StatsResult {
   const sorted = [...games].sort((a, b) => a.startedAt - b.startedAt);
   for (const game of sorted) {
     for (const p of game.seats) of(p);
-    const handRows = game.state.rows.filter((r) => r.kind === 'hand');
+    // Коны считаются все, в том числе несыгранные со штрафом и переходом раздачи.
+    const handRows = game.state.rows;
 
     // ─── Итоги и личные встречи (только завершённые партии) ───
     if (game.finished) {
@@ -248,8 +252,8 @@ export function computeStats(games: readonly StatsGame[]): StatsResult {
         const marks = cell.marks;
         const has = (t: Mark['type']) => marks.some((m) => m.type === t);
 
+        s.totals.hands++;
         if (row.kind === 'hand') {
-          s.totals.hands++;
           s.records.maxGain = Math.max(s.records.maxGain ?? cell.delta, cell.delta);
         }
 
@@ -262,6 +266,7 @@ export function computeStats(games: readonly StatsGame[]): StatsResult {
             case 'dealPenalty':
               if (m.kind === 'redeal') s.penalties.redealPenalties++;
               if (m.kind === 'nine') s.penalties.ninePenalties++;
+              if (m.kind === 'violation') s.penalties.violations++;
               break;
             case 'marriage':
               s.marriages.bySuit[m.marriage]++;

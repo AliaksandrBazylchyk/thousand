@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router';
-import type { GameView, PlayerId } from '@thousand/core';
+import { flagHex, type GameView, type PlayerId } from '@thousand/core';
 import { Celebration } from '../components/Celebration';
 import { ScoreChart } from '../components/ScoreChart';
 import { ScoreTable } from '../components/ScoreTable';
@@ -56,7 +56,13 @@ function TvGame({ gameId, tvKey }: { gameId: string; tvKey: string }) {
             labelWidth={220}
           />
         )}
-        <ScoreTable view={view} showMarriages={showMarriages} autoScroll className="tv-table" />
+        <ScoreTable
+          view={view}
+          showMarriages={showMarriages}
+          autoScroll
+          showFlags
+          className="tv-table"
+        />
       </main>
       <aside className="tv-legend">
         <h2>Обозначения</h2>
@@ -133,13 +139,19 @@ function CurrentState({ view }: { view: GameView }) {
 function Scores({ view }: { view: GameView }) {
   return (
     <div className="tv-scores">
-      {view.seats.map((p) => {
+      {view.seats.map((p, i) => {
         const s = view.state.players[p.id]!;
         return (
           <div
             key={p.id}
             className={`tv-score ${view.winnerId === p.id ? 'win' : ''} ${s.onBarrel ? 'barrel' : ''}`}
           >
+            {/* Флажок цвета игрока у имени (ТЗ 6.3). */}
+            <span
+              className="tv-flag"
+              style={{ background: flagHex(p.flag, i) }}
+              aria-hidden="true"
+            />
             <span className="tv-score-name">
               {view.winnerId === p.id && '♔ '}
               {p.name}

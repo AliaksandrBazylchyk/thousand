@@ -42,8 +42,11 @@ export interface HandEntry {
   prikup: PrikupInput | null;
 }
 
-/** Девятка или валет внизу при сдвиге, пересдача, неправильная раздача. */
-export type DealEventType = 'nineAtBottom' | 'jackAtBottom' | 'redeal' | 'misdeal';
+/**
+ * Девятка или валет внизу при сдвиге, пересдача, неправильная раздача,
+ * нарушение правил (ведущий прерывает кон: −120 нарушителю, раздача переходит дальше).
+ */
+export type DealEventType = 'nineAtBottom' | 'jackAtBottom' | 'redeal' | 'misdeal' | 'violation';
 /** badPrikup — неигровой прикуп (4 очка или меньше), объявляет заказавший после торгов (R9). */
 export type RedealReason = 'fourNines' | 'fourJacks' | 'threeNines' | 'badPrikup';
 
@@ -53,7 +56,7 @@ export interface DealEventEntry {
   type: DealEventType;
   /** Только для пересдачи. */
   reason?: RedealReason;
-  /** У кого на руках карты, из-за которых пересдача (для показа). */
+  /** Пересдача — у кого на руках карты (для показа); нарушение — нарушитель. */
   playerId?: PlayerId;
 }
 
@@ -77,17 +80,18 @@ export interface Turn {
 export type BarrelFallReason =
   | 'failedBid' // не сыграл ставку на бочке
   | 'rospis' // расписал на бочке
-  | 'penalty' // штраф −120 (болт, сдвиг, пересдача, неправильная раздача)
+  | 'penalty' // штраф −120 (болт, сдвиг, пересдача, неправильная раздача, нарушение)
   | 'attempts' // не выиграл за 3 кона
   | 'knocked' // сбит севшим на бочку
   | 'collision'; // сели на бочку одновременно с другим
 
-export type DealPenaltyKind = 'nine' | 'redeal' | 'misdeal';
+export type DealPenaltyKind = 'nine' | 'redeal' | 'misdeal' | 'violation';
 
 export type Mark =
   | { type: 'bidMade'; bid: number }
   | { type: 'bidFailed'; bid: number }
-  | { type: 'rospis'; bid: number }
+  /** points — сколько списано: ставка, в тёмную вдвое больше. */
+  | { type: 'rospis'; bid: number; points: number }
   | { type: 'dark' }
   | { type: 'goldenThousand' }
   | { type: 'winner' }
@@ -166,6 +170,8 @@ export interface HandSummary {
 /** Строка таблицы: одна очередь раздающего — сыгранный кон или штраф с переходом раздачи. */
 export interface Row {
   index: number;
+  /** Номер кона. Несыгранный кон (штраф с переходом раздачи) тоже считается. */
+  number: number;
   /** Запись, которой закончилась строка (кон или штрафное событие). */
   entryId: string;
   kind: 'hand' | 'dealPenalty';
@@ -193,7 +199,7 @@ export interface CurrentDeal {
   /** Сколько пересдач подряд у этого раздающего. */
   redealCount: number;
   dealMarks: DealMark[];
-  /** Номер следующего кона. */
+  /** Номер текущего кона (несыгранные коны со штрафом тоже в счёте). */
   handNumber: number;
 }
 

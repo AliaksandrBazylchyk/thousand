@@ -21,6 +21,8 @@ export interface PlayerRef {
   name: string;
   /** Аватар пользователя-участника (только в комнате и лобби). */
   avatarUrl?: string | null;
+  /** Цвет флажка (id из FLAG_COLORS); пусто — по месту за столом. */
+  flag?: string | null;
 }
 
 /** Вошедший пользователь. */

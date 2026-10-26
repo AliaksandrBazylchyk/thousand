@@ -451,9 +451,93 @@ details[open] summary {
 .score-table th.me {
   color: var(--accent);
 }
+.score-table tbody tr.latest td {
+  background: var(--chip-on);
+}
 .score-table tbody tr:last-child td {
   border-bottom: none;
-  background: var(--chip-on);
+}
+/* Кон, который сейчас играют: статусы в реальном времени. */
+.score-table tr.current-row td {
+  border-top: 1px dashed var(--accent);
+  border-bottom: 1px dashed var(--accent);
+}
+.live-label {
+  display: block;
+  font-size: 0.65em;
+  color: var(--accent);
+  font-weight: 700;
+}
+.live-syms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 6px;
+  font-size: 0.8em;
+}
+.live {
+  font-weight: 700;
+  white-space: nowrap;
+}
+.live.bid {
+  color: var(--accent);
+}
+.live.waiting {
+  color: var(--warn);
+}
+.live.done {
+  color: var(--good);
+}
+.flag {
+  display: inline-block;
+  width: 0.55em;
+  height: 1.05em;
+  margin-right: 0.35em;
+  vertical-align: -0.15em;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%);
+}
+.tv-score {
+  position: relative;
+}
+.tv-flag {
+  position: absolute;
+  top: -1px;
+  right: 0.8em;
+  width: 0.9em;
+  height: 1.9em;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%);
+}
+.flag-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.flag-swatch {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  border: 2px solid var(--border);
+  background: var(--surface);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.flag-swatch .flag {
+  width: 16px;
+  height: 28px;
+  margin: 0;
+}
+.flag-swatch.on {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.grid-buttons .full-row,
+.full-row {
+  grid-column: 1 / -1;
+}
+.chip.danger {
+  color: var(--penalty);
+  border-color: var(--penalty);
 }
 .cell .total {
   display: block;

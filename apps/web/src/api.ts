@@ -62,6 +62,8 @@ export const api = {
     request<{ code: string }>('POST', `${room(code)}/join`, req),
   setAlias: (code: string, alias: string) =>
     request<PlayerRef>('PUT', `${room(code)}/alias`, { alias }),
+  setFlag: (code: string, flag: string | null) =>
+    request<{ id: string; flag: string | null }>('PUT', `${room(code)}/flag`, { flag }),
   resetTvKey: (code: string) => request<{ tvKey: string }>('POST', `${room(code)}/tv-key`, {}),
   createGame: (code: string, seats: PlayerId[], firstDealerId: PlayerId, hostId: PlayerId) =>
     request<{ id: string }>('POST', `${room(code)}/games`, { seats, firstDealerId, hostId }),

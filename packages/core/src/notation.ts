@@ -17,7 +17,7 @@ export function markText(m: Mark): string {
     case 'bidFailed':
       return `▼${m.bid}`;
     case 'rospis':
-      return `Р${m.bid}`;
+      return `Р−${m.points}`;
     case 'dark':
       return '◐';
     case 'goldenThousand':
@@ -39,7 +39,7 @@ export function markText(m: Mark): string {
     case 'bulldozer':
       return '⌀';
     case 'dealPenalty':
-      return { nine: '✂−120', redeal: '↻−120', misdeal: '✕−120' }[m.kind];
+      return { nine: '✂−120', redeal: '↻−120', misdeal: '✕−120', violation: '!−120' }[m.kind];
   }
 }
 
@@ -51,6 +51,8 @@ export function dealMarkText(d: DealMark): string {
       return '✂В';
     case 'misdeal':
       return '✕';
+    case 'violation':
+      return '!';
     case 'redeal':
       return { fourNines: '↻9', fourJacks: '↻В', threeNines: '↻3×9', badPrikup: '↻П' }[
         d.reason ?? 'fourNines'

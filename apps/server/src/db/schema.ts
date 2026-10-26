@@ -72,6 +72,8 @@ export const players = sqliteTable(
     nameKey: text('name_key').notNull(),
     /** Пользователь-участник. Пусто — игрок из истории до учётных записей. */
     userId: text('user_id').references(() => users.id),
+    /** Цвет флажка у имени на ТВ (id из FLAG_COLORS). */
+    flag: text('flag'),
     createdAt: createdAt(),
   },
   (t) => [

@@ -68,7 +68,7 @@ export function HandDetails({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="row between">
-          <h2>{row.hand ? `Кон ${row.hand.number}` : 'Штраф без розыгрыша'}</h2>
+          <h2>{row.hand ? `Кон ${row.number}` : `Кон ${row.number} · штраф без розыгрыша`}</h2>
           <button className="btn small" onClick={onClose} aria-label="Закрыть">
             ✕
           </button>

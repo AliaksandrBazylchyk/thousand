@@ -36,8 +36,10 @@ export function validateHand(
   if (hand.dark === 'overbid' && hand.bid < MIN_DARK_OVERBID) {
     add('error', 'darkOverbidTooLow', `Тёмную перебивают ставкой от ${MIN_DARK_OVERBID}`);
   }
-  if (hand.dark !== 'none' && players[turn.onHundred]?.onBarrel) {
-    add('error', 'darkOnBarrel', 'Игрок на бочке не может играть в тёмную', turn.onHundred);
+  // В тёмную нельзя, пока кто-то на бочке (2.5).
+  const onBarrel = Object.entries(players).find(([, s]) => s.onBarrel)?.[0];
+  if (hand.dark !== 'none' && onBarrel) {
+    add('error', 'darkOnBarrel', 'Пока кто-то на бочке, в тёмную играть нельзя', onBarrel);
   }
 
   if (hand.goldenThousand) return issues;

@@ -15,6 +15,7 @@ import {
   avatarSchema,
   createGameSchema,
   createRoomSchema,
+  flagSchema,
   joinRoomSchema,
   loginSchema,
   passwordSchema,
@@ -178,6 +179,12 @@ app.post<{ Params: { code: string } }>('/api/rooms/:code/join', (req, reply) =>
 app.put<{ Params: { code: string } }>('/api/rooms/:code/alias', (req, reply) =>
   handle(reply, () =>
     service.setAlias(req.params.code, userId(req), parse(aliasSchema, req.body).alias),
+  ),
+);
+
+app.put<{ Params: { code: string } }>('/api/rooms/:code/flag', (req, reply) =>
+  handle(reply, () =>
+    service.setFlag(req.params.code, userId(req), parse(flagSchema, req.body).flag),
   ),
 );
 

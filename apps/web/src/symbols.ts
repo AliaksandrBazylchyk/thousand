@@ -27,6 +27,7 @@ export type IconName =
   | 'redeal'
   | 'nine-bottom'
   | 'misdeal'
+  | 'violation'
   | 'golden-thousand'
   | 'winner';
 
@@ -54,7 +55,14 @@ export function markSymbol(m: Mark): Symbol | null {
     case 'bidFailed':
       return sym('bid-failed', `${m.bid}`, '▼', 'penalty', `Заказ ${m.bid} не сыгран`);
     case 'rospis':
-      return sym('rospis', `${m.bid}`, 'Р', 'penalty', `Роспись ${m.bid}`);
+      // Подпись — сколько списано: в тёмную вдвое больше ставки.
+      return sym(
+        'rospis',
+        `−${m.points}`,
+        'Р',
+        'penalty',
+        m.points === m.bid ? `Роспись ${m.bid}` : `Роспись ${m.bid} в тёмную: −${m.points}`,
+      );
     case 'dark':
       return sym('dark', undefined, '◐', undefined, 'Тёмная');
     case 'goldenThousand':
@@ -105,6 +113,14 @@ export function markSymbol(m: Mark): Symbol | null {
           return sym('redeal', PENALTY_LABEL, '↻', 'penalty', 'Третья пересдача подряд');
         case 'misdeal':
           return sym('misdeal', PENALTY_LABEL, '✕', 'penalty', 'Неправильная раздача');
+        case 'violation':
+          return sym(
+            'violation',
+            PENALTY_LABEL,
+            '!',
+            'penalty',
+            'Нарушение правил: ведущий прервал кон',
+          );
       }
   }
 }
@@ -138,6 +154,8 @@ export function dealMarkSymbol(d: DealMark): Symbol {
       );
     case 'misdeal':
       return sym('misdeal', undefined, '✕', 'penalty', 'Неправильная раздача');
+    case 'violation':
+      return sym('violation', undefined, '!', 'penalty', 'Кон прерван за нарушение правил');
     case 'redeal': {
       const label = { fourNines: '9', fourJacks: 'В', threeNines: '3×9', badPrikup: 'П' }[
         d.reason ?? 'fourNines'
@@ -175,7 +193,10 @@ export const REDEAL_REASON_LABEL = {
 export const LEGEND: { symbols: Symbol[]; meaning: string }[] = [
   { symbols: [sym('bid-made', '120', '▲', 'good', '')], meaning: 'Заказ сыгран' },
   { symbols: [sym('bid-failed', '120', '▼', 'penalty', '')], meaning: 'Заказ не сыгран' },
-  { symbols: [sym('rospis', '120', 'Р', 'penalty', '')], meaning: 'Роспись' },
+  {
+    symbols: [sym('rospis', '−120', 'Р', 'penalty', '')],
+    meaning: 'Роспись: сколько списано (в тёмную вдвое)',
+  },
   { symbols: [sym('dark', undefined, '◐', undefined, '')], meaning: 'Тёмная' },
   {
     symbols: [
@@ -211,6 +232,10 @@ export const LEGEND: { symbols: Symbol[]; meaning: string }[] = [
     meaning: 'Третья пересдача, третий сдвиг',
   },
   { symbols: [sym('misdeal', PENALTY_LABEL, '✕', 'penalty', '')], meaning: 'Неправильная раздача' },
+  {
+    symbols: [sym('violation', PENALTY_LABEL, '!', 'penalty', '')],
+    meaning: 'Нарушение правил, кон прерван',
+  },
   { symbols: [sym('prikup', undefined, 'П', 'muted', '')], meaning: 'На прикупе' },
   { symbols: [sym('golden-thousand', undefined, '★', 'win', '')], meaning: 'Золотая тысяча' },
   { symbols: [sym('winner', undefined, '♔', 'win', '')], meaning: 'Победитель' },

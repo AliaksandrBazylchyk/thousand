@@ -1,6 +1,13 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import type { GameSummary, PlayerId, RoomJoinView, RoomView } from '@thousand/core';
+import {
+  FLAG_COLORS,
+  flagHex,
+  type GameSummary,
+  type PlayerId,
+  type RoomJoinView,
+  type RoomView,
+} from '@thousand/core';
 import { api } from '../api';
 import { useMeUser } from '../auth';
 import { Avatar } from '../components/Avatar';
@@ -33,6 +40,7 @@ export function RoomPage() {
       </header>
 
       <AliasCard room={room} />
+      <FlagPicker room={room} />
       <Members room={room} />
       <TvLink room={room} />
       <GamesList room={room} />
@@ -218,6 +226,43 @@ function AliasCard({ room }: { room: RoomView }) {
   );
 }
 
+/** Цвет своего флажка: он стоит у имени на ТВ (ТЗ 6.3). Без выбора — цвет по месту за столом. */
+function FlagPicker({ room }: { room: RoomView }) {
+  const [error, setError] = useState<string | null>(null);
+  const choose = (flag: string | null) =>
+    api.setFlag(room.code, flag).then(
+      () => setError(null),
+      (e: Error) => setError(e.message),
+    );
+  return (
+    <section className="stack-sm">
+      <span className="label-small">Цвет флажка на ТВ</span>
+      <div className="flag-picker" role="radiogroup" aria-label="Цвет флажка">
+        {FLAG_COLORS.map((f) => (
+          <button
+            key={f.id}
+            type="button"
+            role="radio"
+            aria-checked={room.me.flag === f.id}
+            aria-label={f.name}
+            title={f.name}
+            className={`flag-swatch ${room.me.flag === f.id ? 'on' : ''}`}
+            onClick={() => void choose(f.id)}
+          >
+            <span className="flag" style={{ background: f.hex }} />
+          </button>
+        ))}
+        {room.me.flag && (
+          <button type="button" className="link-btn muted" onClick={() => void choose(null)}>
+            по месту
+          </button>
+        )}
+      </div>
+      {error && <p className="error">{error}</p>}
+    </section>
+  );
+}
+
 function Members({ room }: { room: RoomView }) {
   return (
     <section className="stack-sm">
@@ -227,6 +272,7 @@ function Members({ room }: { room: RoomView }) {
           <li key={p.id}>
             <Avatar name={p.name} url={p.avatarUrl} size={40} />
             <span>{p.name}</span>
+            {p.flag && <span className="flag" style={{ background: flagHex(p.flag, 0) }} />}
           </li>
         ))}
       </ul>

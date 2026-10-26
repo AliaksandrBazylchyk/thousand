@@ -12,7 +12,7 @@ const bid = z.number().int().min(100).max(1000);
 export const gameActionSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('dealEvent'),
-    event: z.enum(['nineAtBottom', 'jackAtBottom', 'redeal', 'misdeal']),
+    event: z.enum(['nineAtBottom', 'jackAtBottom', 'redeal', 'misdeal', 'violation']),
     reason: z.enum(['fourNines', 'fourJacks', 'threeNines']).optional(),
     playerId: id.optional(),
   }),
@@ -93,6 +93,7 @@ export const joinRoomSchema = z
   .object({ alias: alias.optional(), claimPlayerId: id.optional() })
   .refine((v) => v.alias || v.claimPlayerId, 'Введите псевдоним');
 export const aliasSchema = z.object({ alias });
+export const flagSchema = z.object({ flag: z.string().max(20).nullable() });
 export const createGameSchema = z
   .object({
     seats: z.array(id).min(2).max(4),

@@ -31,7 +31,7 @@ export function exportJson(view: GameView, details: GameDetails) {
       ...view.state.players[s.id],
     })),
     table: view.state.rows.map((r) => ({
-      hand: r.hand?.number ?? null,
+      hand: r.number,
       dealer: nameOf(r.turn.dealer),
       dealEvents: r.dealMarks.map(dealMarkText),
       declarer: r.hand ? nameOf(r.hand.declarer) : null,
@@ -72,7 +72,7 @@ export function exportCsv(view: GameView): string {
     ...view.seats.flatMap((s) => [s.name, `${s.name}: кон`, `${s.name}: символы`]),
   ];
   const lines = view.state.rows.map((r) => [
-    r.hand?.number ?? '',
+    r.number,
     nameOf(r.turn.dealer),
     r.dealMarks.map(dealMarkText).join(' '),
     r.hand ? nameOf(r.hand.declarer) : '',

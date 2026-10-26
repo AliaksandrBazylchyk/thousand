@@ -164,6 +164,7 @@ export function PlayerGroups({ s, nameOf }: { s: PlayerStats; nameOf: (id: Playe
           ['Третья пересдача подряд', s.penalties.redealPenalties],
           ['Девятка или валет внизу 3 раза', s.penalties.ninePenalties],
           ['Неправильные раздачи', s.penalties.misdeals],
+          ['Нарушения правил (−120)', s.penalties.violations],
         ]}
       />
       <Group

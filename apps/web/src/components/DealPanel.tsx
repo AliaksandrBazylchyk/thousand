@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { MIN_BID, MIN_DARK_BID, MIN_DARK_OVERBID, type DarkStatus } from '@thousand/core';
 import { dealMarkSymbol } from '../symbols';
+import { RedealButtons, ViolationButton } from './DealButtons';
 import { Sym } from './Sym';
 import { BidStepper, ErrorText, useRun, type GameCtx } from './ui';
 
@@ -15,8 +16,9 @@ export function DealPanel({ ctx }: { ctx: GameCtx }) {
   const iHaveCards = me !== null && turn.active.includes(me);
   const iAmOnHundred = me === turn.onHundred;
   const iAmShifter = me === turn.shifter;
-  const canDark = iAmOnHundred && !(view.state.players[turn.onHundred]?.onBarrel ?? false);
-  const anyButtons = iHaveCards || iAmShifter || canDark || isHost;
+  // В тёмную нельзя, пока кто-то на бочке (ТЗ 2.5): кнопка видна, но заблокирована.
+  const barrelHolder = view.seats.find((p) => view.state.players[p.id]?.onBarrel);
+  const anyButtons = iHaveCards || iAmShifter || iAmOnHundred || isHost;
 
   return (
     <section className="card stack">
@@ -47,24 +49,7 @@ export function DealPanel({ ctx }: { ctx: GameCtx }) {
 
       {anyButtons && (
         <div className="grid-buttons">
-          {iHaveCards && (
-            <>
-              <button
-                className="btn"
-                disabled={busy}
-                onClick={() => run({ type: 'dealEvent', event: 'redeal', reason: 'fourNines' })}
-              >
-                ↻ 4 девятки
-              </button>
-              <button
-                className="btn"
-                disabled={busy}
-                onClick={() => run({ type: 'dealEvent', event: 'redeal', reason: 'fourJacks' })}
-              >
-                ↻ 4 вальта
-              </button>
-            </>
-          )}
+          {iHaveCards && <RedealButtons ctx={ctx} />}
           {iAmOnHundred && (
             <button
               className="btn"
@@ -99,10 +84,11 @@ export function DealPanel({ ctx }: { ctx: GameCtx }) {
               </button>
             </>
           )}
-          {canDark && (
+          {iAmOnHundred && (
             <button
               className={`btn ${view.darkDeclared ? 'on' : ''}`}
-              disabled={busy}
+              disabled={busy || (!!barrelHolder && !view.darkDeclared)}
+              title={barrelHolder ? `${barrelHolder.name} на бочке — в тёмную нельзя` : undefined}
               onClick={() => run({ type: 'declareDark', value: !view.darkDeclared })}
             >
               {view.darkDeclared ? 'Отменить тёмную' : 'Играю в тёмную'}
@@ -122,7 +108,11 @@ export function DealPanel({ ctx }: { ctx: GameCtx }) {
               Неправильная раздача
             </button>
           )}
+          {isHost && <ViolationButton ctx={ctx} />}
         </div>
+      )}
+      {iAmOnHundred && barrelHolder && !view.darkDeclared && (
+        <p className="small warn">{barrelHolder.name} на бочке — в тёмную играть нельзя</p>
       )}
       <ErrorText error={error} />
 

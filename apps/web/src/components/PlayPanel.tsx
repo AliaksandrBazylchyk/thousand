@@ -11,6 +11,7 @@ import {
 } from '@thousand/core';
 import { inputText } from '../editLog';
 import { MARRIAGES, MARRIAGE_SYMBOL, SUITS } from '../symbols';
+import { RedealButtons, ViolationButton } from './DealButtons';
 import { BidStepper, ErrorText, useRun, type GameCtx } from './ui';
 
 /** Этапы «Торги», «Ввод» и «Ожидание»: кон начат, идёт розыгрыш и ввод очков. */
@@ -42,6 +43,13 @@ export function PlayPanel({ ctx }: { ctx: GameCtx }) {
       )}
 
       {iAmDeclarer && !draft.goldenThousand && <DeclarerControls ctx={ctx} />}
+
+      {/* 4 девятки или 4 вальта могут обнаружиться и после итога торгов (ТЗ 2.3). */}
+      {iPlay && (
+        <div className="grid-buttons compact">
+          <RedealButtons ctx={ctx} afterBid />
+        </div>
+      )}
 
       {showMyTricks &&
         (myInput?.tricks != null || (iAmDeclarer && draft.goldenThousand)) &&
@@ -498,6 +506,7 @@ function HostReview({ ctx }: { ctx: GameCtx }) {
           Подтвердить кон
         </button>
       </div>
+      <ViolationButton ctx={ctx} />
       <ErrorText error={error} />
     </div>
   );

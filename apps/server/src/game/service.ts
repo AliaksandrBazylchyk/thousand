@@ -2,6 +2,7 @@ import { and, asc, eq, inArray, isNotNull, isNull, ne } from 'drizzle-orm';
 import {
   CARD_POINTS_TOTAL,
   computeStats,
+  FLAG_COLORS,
   replay,
   validateHand,
   type DealEventEntry,
@@ -64,7 +65,7 @@ interface LoadedGame {
   game: GameRow;
   room: typeof rooms.$inferSelect;
   setup: GameSetup;
-  seats: { id: PlayerId; name: string }[];
+  seats: { id: PlayerId; name: string; flag: string | null }[];
   entries: Entry[];
   hands: HandRow[];
   inputs: InputRow[];
@@ -111,6 +112,7 @@ export function createGameService(db: Db, onChange: (gameId: string, roomId: str
         name: players.name,
         roomId: players.roomId,
         userId: players.userId,
+        flag: players.flag,
         avatarUpdatedAt: users.avatarUpdatedAt,
       })
       .from(players)
@@ -124,6 +126,7 @@ export function createGameService(db: Db, onChange: (gameId: string, roomId: str
     id: m.id,
     name: m.name,
     avatarUrl: avatarUrl({ id: m.userId!, avatarUpdatedAt: m.avatarUpdatedAt }),
+    flag: m.flag,
   });
 
   /** Ключ псевдонима, если он свободен в комнате. */
@@ -299,23 +302,39 @@ export function createGameService(db: Db, onChange: (gameId: string, roomId: str
     return { code: room.code };
   }
 
+  /** Псевдоним или флажок изменился: обновляем партии игрока у всех, включая ТВ. */
+  function refreshPlayerGames(roomId: string, playerId: string) {
+    const seatedIn = db
+      .select({ id: gamePlayers.gameId })
+      .from(gamePlayers)
+      .where(eq(gamePlayers.playerId, playerId))
+      .all();
+    for (const g of seatedIn) {
+      cache.delete(g.id);
+      onChange(g.id, roomId);
+    }
+    onChange('', roomId);
+  }
+
   /** Смена псевдонима: имя меняется во всех партиях комнаты. */
   function setAlias(code: string, userId: string, alias: string) {
     const { room, player } = requireMember(code, userId);
     const name = cleanName(alias);
     const key = freeAliasKey(room.id, name, player.id);
     db.update(players).set({ name, nameKey: key }).where(eq(players.id, player.id)).run();
-    const seatedIn = db
-      .select({ id: gamePlayers.gameId })
-      .from(gamePlayers)
-      .where(eq(gamePlayers.playerId, player.id))
-      .all();
-    for (const g of seatedIn) {
-      cache.delete(g.id);
-      onChange(g.id, room.id);
-    }
-    onChange('', room.id);
+    refreshPlayerGames(room.id, player.id);
     return { id: player.id, name };
+  }
+
+  /** Цвет своего флажка у имени на ТВ; null — по месту за столом (ТЗ 6.3). */
+  function setFlag(code: string, userId: string, flag: string | null) {
+    const { room, player } = requireMember(code, userId);
+    if (flag !== null && !FLAG_COLORS.some((f) => f.id === flag)) {
+      throw new GameError('Такого цвета флажка нет');
+    }
+    db.update(players).set({ flag }).where(eq(players.id, player.id)).run();
+    refreshPlayerGames(room.id, player.id);
+    return { id: player.id, flag };
   }
 
   /** Новая ТВ-ссылка; старая перестаёт работать. */
@@ -390,7 +409,7 @@ export function createGameService(db: Db, onChange: (gameId: string, roomId: str
     if (!game) throw new GameError('Партия не найдена');
     const room = db.select().from(rooms).where(eq(rooms.id, game.roomId)).get()!;
     const seats = db
-      .select({ id: players.id, name: players.name })
+      .select({ id: players.id, name: players.name, flag: players.flag })
       .from(gamePlayers)
       .innerJoin(players, eq(players.id, gamePlayers.playerId))
       .where(eq(gamePlayers.gameId, gameId))
@@ -523,7 +542,8 @@ export function createGameService(db: Db, onChange: (gameId: string, roomId: str
       winnerId: view.winnerId,
       startedAt: view.startedAt,
       finishedAt: view.finishedAt,
-      handsPlayed: view.state.rows.filter((r) => r.kind === 'hand').length,
+      // Коны считаются все, в том числе несыгранные со штрафом.
+      handsPlayed: view.state.rows.length,
       scores: Object.fromEntries(Object.entries(view.state.players).map(([p, s]) => [p, s.score])),
     };
   }
@@ -577,7 +597,12 @@ export function createGameService(db: Db, onChange: (gameId: string, roomId: str
       switch (action.type) {
         case 'dealEvent': {
           // Права совпадают с кнопками на экране: каждое событие отмечает тот, кому оно доступно.
-          if (action.event === 'misdeal') requireHost();
+          if (action.event === 'misdeal' || action.event === 'violation') requireHost();
+          if (action.event === 'violation') {
+            if (!action.playerId || !g.setup.seats.includes(action.playerId)) {
+              throw new GameError('Выберите нарушителя');
+            }
+          }
           const atBottom = action.event === 'nineAtBottom' || action.event === 'jackAtBottom';
           if (atBottom && actorId !== turn.shifter) {
             throw new GameError('Девятку или валета внизу отмечает сдвигающий');
@@ -592,7 +617,14 @@ export function createGameService(db: Db, onChange: (gameId: string, roomId: str
             }
           }
           if (g.draft) {
-            if (action.event !== 'misdeal') throw new GameError('Кон уже начат');
+            // После итога торгов ещё можно: неправильная раздача, нарушение правил,
+            // пересдача из-за 4 девяток или 4 вальтов (их видно, когда взят прикуп).
+            const allowedInPlay =
+              action.event === 'misdeal' ||
+              action.event === 'violation' ||
+              (action.event === 'redeal' &&
+                (action.reason === 'fourNines' || action.reason === 'fourJacks'));
+            if (!allowedInPlay) throw new GameError('Кон уже начат');
             db.delete(hands).where(eq(hands.id, g.draft.id)).run();
             log('cancelHand', handSnapshot(g.draft, g.draftInputs), null, g.draft.id);
           }
@@ -643,8 +675,8 @@ export function createGameService(db: Db, onChange: (gameId: string, roomId: str
           if (actorId !== turn.onHundred) {
             throw new GameError('Тёмную объявляет игрок на 100');
           }
-          if (action.value && g.state.players[turn.onHundred]?.onBarrel) {
-            throw new GameError('Игрок на бочке не может играть в тёмную');
+          if (action.value && Object.values(g.state.players).some((s) => s.onBarrel)) {
+            throw new GameError('Пока кто-то на бочке, в тёмную играть нельзя');
           }
           db.update(games).set({ darkDeclared: action.value }).where(eq(games.id, gameId)).run();
           break;
@@ -905,9 +937,7 @@ export function createGameService(db: Db, onChange: (gameId: string, roomId: str
     const dealerOf = new Map(g.hands.map((h) => [h.id, h.dealerId]));
     for (const row of state.rows) {
       if (row.kind === 'hand' && dealerOf.get(row.entryId) !== row.turn.dealer) {
-        throw new GameError(
-          `Нельзя: сдвинется очерёдность раздачи, начиная с кона ${row.hand?.number ?? '?'}`,
-        );
+        throw new GameError(`Нельзя: сдвинется очерёдность раздачи, начиная с кона ${row.number}`);
       }
     }
     if (state.issues.some((i) => i.code === 'afterGameOver')) {
@@ -920,7 +950,7 @@ export function createGameService(db: Db, onChange: (gameId: string, roomId: str
     const fresh = state.issues.find((i) => i.level === 'error' && !before.has(key(i)));
     if (fresh) {
       const row = state.rows.find((r) => r.entryId === fresh.entryId);
-      const where = row?.hand ? `Кон ${row.hand.number}: ` : '';
+      const where = row ? `Кон ${row.number}: ` : '';
       throw new GameError(`${where}${fresh.message}`);
     }
     return state;
@@ -967,7 +997,7 @@ export function createGameService(db: Db, onChange: (gameId: string, roomId: str
       code: room.code,
       players: pool,
       games: finished.length,
-      hands: finished.reduce((n, v) => n + v.state.rows.filter((r) => r.kind === 'hand').length, 0),
+      hands: finished.reduce((n, v) => n + v.state.rows.length, 0),
       stats: computeStats(
         finished.map((v) => ({
           id: v.id,
@@ -1038,6 +1068,7 @@ export function createGameService(db: Db, onChange: (gameId: string, roomId: str
     joinView,
     join,
     setAlias,
+    setFlag,
     resetTvKey,
     tvRoom,
     assertRoomAccess,

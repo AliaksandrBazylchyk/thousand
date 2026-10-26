@@ -75,6 +75,8 @@ export function replay(setup: GameSetup, entries: readonly Entry[]): GameState {
       const penalty = applyDealEvent(entry, turn);
       if (penalty) {
         rows.push(penaltyRow(entry, turn, penalty));
+        // Несыгранный кон тоже идёт в счёт конов.
+        handNumber++;
         nextDealer();
       }
     } else {
@@ -138,13 +140,22 @@ export function replay(setup: GameSetup, entries: readonly Entry[]): GameState {
       case 'misdeal':
         mark(1, turn.dealer);
         return 'misdeal';
+      // Нарушение правил: ведущий прерывает кон, −120 нарушителю, остальным ничего.
+      case 'violation':
+        mark(1, e.playerId ?? turn.dealer);
+        return 'violation';
     }
   }
 
   function penaltyRow(e: DealEventEntry, turn: Turn, kind: DealPenaltyKind): Row {
     const before = snapshot();
     const marks = emptyMarks();
-    const target = kind === 'nine' ? turn.shifter : turn.dealer;
+    const target =
+      kind === 'nine'
+        ? turn.shifter
+        : kind === 'violation' && e.playerId && e.playerId in players
+          ? e.playerId
+          : turn.dealer;
 
     marks[target]!.push({ type: 'dealPenalty', kind });
     if (status(target).onBarrel) fall(target, BARREL_PENALTY_SCORE, 'penalty', marks);
@@ -214,7 +225,7 @@ export function replay(setup: GameSetup, entries: readonly Entry[]): GameState {
     let made = false;
     if (hand.rospis) {
       credited[declarer] = -bid * mult;
-      marks[declarer]!.push({ type: 'rospis', bid });
+      marks[declarer]!.push({ type: 'rospis', bid, points: bid * mult });
     } else {
       made = tricksOf(declarer) + marriagesSum(marriagesOf(declarer)) >= bid;
       credited[declarer] = (made ? bid : -bid) * mult;
@@ -390,6 +401,7 @@ export function replay(setup: GameSetup, entries: readonly Entry[]): GameState {
     issues.push(...rowIssues);
     return {
       index: rows.length,
+      number: handNumber,
       entryId,
       kind,
       turn,

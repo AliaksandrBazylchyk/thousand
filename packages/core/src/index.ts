@@ -8,3 +8,4 @@ export { validateHand } from './validate';
 export { replay } from './replay';
 export * from './stats';
 export * from './notation';
+export * from './flags';

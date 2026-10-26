@@ -324,8 +324,27 @@
 :root[data-theme='tavern'] .score-table td {
   border-bottom-color: var(--line);
 }
-:root[data-theme='tavern'] .score-table tbody tr:last-child td {
+:root[data-theme='tavern'] .score-table tbody tr.latest td {
   background: rgb(216 180 106 / 0.08);
+}
+:root[data-theme='tavern'] .score-table tr.current-row td {
+  border-color: var(--frame);
+}
+:root[data-theme='tavern'] .live-label {
+  font-family: var(--font-title);
+  color: var(--accent);
+}
+:root[data-theme='tavern'] .live.bid {
+  color: var(--accent-hi);
+}
+:root[data-theme='tavern'] .flag-swatch {
+  border-radius: 4px;
+  border-color: var(--frame);
+  background: var(--bg);
+}
+:root[data-theme='tavern'] .flag-swatch.on {
+  border-color: var(--accent-hi);
+  box-shadow: inset 0 0 0 2px var(--frame-light);
 }
 :root[data-theme='tavern'] .score-table tr.clickable:hover td {
   background: rgb(216 180 106 / 0.06);
@@ -419,24 +438,8 @@
     inset 0 0 0 3px #120d09,
     inset 0 0 0 4px #5a4429;
 }
-:root[data-theme='tavern'] .tv-score::after {
-  content: '';
-  position: absolute;
+:root[data-theme='tavern'] .tv-flag {
   top: -2px;
-  right: 0.8em;
-  width: 0.9em;
-  height: 1.9em;
-  background: var(--series-1);
-  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%);
-}
-:root[data-theme='tavern'] .tv-score:nth-child(2)::after {
-  background: var(--series-2);
-}
-:root[data-theme='tavern'] .tv-score:nth-child(3)::after {
-  background: var(--series-3);
-}
-:root[data-theme='tavern'] .tv-score:nth-child(4)::after {
-  background: var(--series-4);
 }
 :root[data-theme='tavern'] .tv-score.barrel {
   border-color: var(--barrel);
